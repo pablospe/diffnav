@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
@@ -18,6 +19,7 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/diffviewer"
 	"github.com/dlvhdr/diffnav/pkg/ui/panes/filetree"
+	"github.com/dlvhdr/diffnav/pkg/ui/panes/filetreev2"
 	"github.com/dlvhdr/diffnav/pkg/utils"
 )
 
@@ -32,6 +34,7 @@ type mainModel struct {
 	files             []*gitdiff.File
 	cursor            int
 	fileTree          filetree.Model
+	fileTreeV2        filetreev2.Model
 	diffViewer        diffviewer.Model
 	width             int
 	height            int
@@ -47,6 +50,7 @@ type mainModel struct {
 func New(input string) mainModel {
 	m := mainModel{input: input, isShowingFileTree: true}
 	m.fileTree = filetree.New()
+	m.fileTreeV2 = filetreev2.New()
 	m.diffViewer = diffviewer.New()
 
 	m.help = help.New()
@@ -132,6 +136,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 			m.fileTree = m.fileTree.SetFiles(m.files)
+			m.fileTreeV2 = m.fileTreeV2.SetFiles(m.files)
 			cmd = m.setCursor(0)
 			cmds = append(cmds, cmd)
 
@@ -230,6 +235,8 @@ func (m mainModel) View() string {
 		width := m.sidebarWidth()
 		if m.searching {
 			content = m.resultsVp.View()
+		} else if os.Getenv("DIFFNAV_FILETREE") == "v2" {
+			content = m.fileTreeV2.View()
 		} else {
 			content = m.fileTree.View()
 		}
