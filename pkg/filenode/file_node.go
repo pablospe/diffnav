@@ -25,13 +25,13 @@ func (f FileNode) Path() string {
 func (f FileNode) Value() string {
 	icon := " "
 	status := " "
-	if f.File.IsNew {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("")
-	} else if f.File.IsDelete {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render("")
-	} else {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render("")
-	}
+	// if f.File.IsNew {
+	// 	status += lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("")
+	// } else if f.File.IsDelete {
+	// 	status += lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render("")
+	// } else {
+	// 	status += lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render("")
+	// }
 
 	depthWidth := f.Depth * 2
 	iconsWidth := lipgloss.Width(icon) + lipgloss.Width(status)

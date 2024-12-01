@@ -205,6 +205,24 @@ func buildFullFileTree(files []*gitdiff.File) *tree.Tree {
 	return t
 }
 
+// Given a tree with nodes that have only one child, collapse the tree by
+// merging these nodes with their parents, as long as the parent has only one child as well.
+// For example, the tree:
+// .
+// ├── a
+// │   └── b
+// │       └── c
+//
+// will be collapsed to:
+// .
+// ├── a/b
+// │   └── c
+//
+// This tree wouldn't be collapsed:
+// ├── a
+// │   ├── b
+// │   │   └── c
+// │   └── d
 func collapseTree(t *tree.Tree) *tree.Tree {
 	children := t.Children()
 	newT := tree.Root(t.Value())
@@ -243,6 +261,7 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 
 const dirIcon = " "
 
+// updates the file nodes's depth and yOffsets?
 func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int) (*tree.Tree, int) {
 	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), constants.OpenFileTreeWidth-depth*2))
 	numNodes++

@@ -127,8 +127,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.height = msg.Height
 			dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight)
 			cmds = append(cmds, dfCmd)
-			ftCmd := m.fileTree.SetSize(m.sidebarWidth(), m.height-footerHeight-headerHeight-searchHeight)
-			cmds = append(cmds, ftCmd)
+			m.fileTree.SetSize(m.sidebarWidth(), m.height-footerHeight-headerHeight-searchHeight)
+			m.fileTreeV2.SetSize(m.sidebarWidth(), m.height-footerHeight-headerHeight-searchHeight)
 
 		case fileTreeMsg:
 			m.files = msg.files
