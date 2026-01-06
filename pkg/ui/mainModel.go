@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 
+	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/constants"
 	"github.com/dlvhdr/diffnav/pkg/filenode"
 	"github.com/dlvhdr/diffnav/pkg/ui/common"
@@ -42,10 +43,11 @@ type mainModel struct {
 	resultsCursor     int
 	searching         bool
 	filtered          []string
+	config            config.Config
 }
 
-func New(input string) mainModel {
-	m := mainModel{input: input, isShowingFileTree: true}
+func New(input string, cfg config.Config) mainModel {
+	m := mainModel{input: input, isShowingFileTree: true, config: cfg}
 	m.fileTree = filetree.New()
 	m.diffViewer = diffviewer.New()
 
@@ -96,14 +98,14 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.filtered = make([]string, 0)
 
 				m.resultsVp.Width = constants.SearchingFileTreeWidth
-				m.resultsVp.Height = m.height - footerHeight - headerHeight - searchHeight
+				m.resultsVp.Height = m.height - footerHeight - m.headerHeight() - searchHeight
 				m.resultsVp.SetContent(m.resultsView())
 
-				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight)
+				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-m.headerHeight())
 				cmds = append(cmds, dfCmd, m.search.Focus())
 			case "e":
 				m.isShowingFileTree = !m.isShowingFileTree
-				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight)
+				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-m.headerHeight())
 				cmds = append(cmds, dfCmd)
 			case "up", "k", "ctrl+p":
 				if m.cursor > 0 {
@@ -128,9 +130,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.help.Width = msg.Width
 			m.width = msg.Width
 			m.height = msg.Height
-			dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight)
+			dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-m.headerHeight())
 			cmds = append(cmds, dfCmd)
-			ftCmd := m.fileTree.SetSize(m.sidebarWidth(), m.height-footerHeight-headerHeight-searchHeight)
+			ftCmd := m.fileTree.SetSize(m.sidebarWidth(), m.height-footerHeight-m.headerHeight()-searchHeight)
 			cmds = append(cmds, ftCmd)
 
 		case fileTreeMsg:
@@ -170,13 +172,13 @@ func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
 			switch msg.String() {
 			case "esc":
 				m.stopSearch()
-				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight)
+				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-m.headerHeight())
 				cmds = append(cmds, dfCmd)
 			case "ctrl+c":
 				return m, []tea.Cmd{tea.Quit}
 			case "enter":
 				m.stopSearch()
-				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight)
+				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-m.headerHeight())
 				cmds = append(cmds, dfCmd)
 
 				selected := m.filtered[m.resultsCursor]
@@ -216,12 +218,6 @@ func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
 }
 
 func (m mainModel) View() string {
-	header := lipgloss.NewStyle().Width(m.width).
-		Border(lipgloss.NormalBorder(), false, false, true, false).
-		BorderForeground(lipgloss.Color("8")).
-		Foreground(lipgloss.Color("6")).
-		Bold(true).
-		Render("DIFFNAV")
 	footer := m.footerView()
 
 	sidebar := ""
@@ -243,14 +239,28 @@ func (m mainModel) View() string {
 
 		content = lipgloss.NewStyle().
 			Width(width).
-			Height(m.height - footerHeight - headerHeight).Render(lipgloss.JoinVertical(lipgloss.Left, search, content))
+			Height(m.height - footerHeight - m.headerHeight()).Render(lipgloss.JoinVertical(lipgloss.Left, search, content))
 
 		sidebar = lipgloss.NewStyle().
 			Width(width).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
 			BorderForeground(lipgloss.Color("8")).Render(content)
 	}
-	dv := lipgloss.NewStyle().MaxHeight(m.height - footerHeight - headerHeight).Width(m.width - m.sidebarWidth()).Render(m.diffViewer.View())
+	dv := lipgloss.NewStyle().MaxHeight(m.height - footerHeight - m.headerHeight()).Width(m.width - m.sidebarWidth()).Render(m.diffViewer.View())
+
+	if m.config.HideHeader {
+		return lipgloss.JoinVertical(lipgloss.Left,
+			lipgloss.JoinHorizontal(lipgloss.Top, sidebar, dv),
+			footer,
+		)
+	}
+
+	header := lipgloss.NewStyle().Width(m.width).
+		Border(lipgloss.NormalBorder(), false, false, true, false).
+		BorderForeground(lipgloss.Color("8")).
+		Foreground(lipgloss.Color("6")).
+		Bold(true).
+		Render("DIFFNAV")
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		lipgloss.JoinHorizontal(lipgloss.Top, sidebar, dv),
@@ -304,6 +314,13 @@ func (m mainModel) sidebarWidth() int {
 	} else {
 		return 0
 	}
+}
+
+func (m mainModel) headerHeight() int {
+	if m.config.HideHeader {
+		return 0
+	}
+	return headerHeight
 }
 
 func (m *mainModel) stopSearch() {
