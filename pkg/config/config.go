@@ -24,7 +24,7 @@ func DefaultConfig() Config {
 		ShowFileTree:    true,
 		FileTreeWidth:   26,
 		SearchTreeWidth: 50,
-		Icons:           "unicode",
+		Icons:           "ascii",
 	}
 }
 

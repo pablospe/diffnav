@@ -41,20 +41,20 @@ func (f FileNode) getIcon() string {
 			return ""
 		}
 		return ""
-	case IconsASCII:
+	case IconsUnicode:
 		if f.File.IsNew {
 			return "+"
 		} else if f.File.IsDelete {
-			return "-"
-		}
-		return "~"
-	default: // unicode
-		if f.File.IsNew {
-			return "✚"
-		} else if f.File.IsDelete {
-			return "✖"
+			return "⛌"
 		}
 		return "●"
+	default: // ascii (default)
+		if f.File.IsNew {
+			return "+"
+		} else if f.File.IsDelete {
+			return "x"
+		}
+		return "*"
 	}
 }
 
