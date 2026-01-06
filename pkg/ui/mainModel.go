@@ -13,12 +13,12 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 
-	"github.com/dlvhdr/diffnav/pkg/config"
-	"github.com/dlvhdr/diffnav/pkg/filenode"
-	"github.com/dlvhdr/diffnav/pkg/ui/common"
-	"github.com/dlvhdr/diffnav/pkg/ui/panes/diffviewer"
-	"github.com/dlvhdr/diffnav/pkg/ui/panes/filetree"
-	"github.com/dlvhdr/diffnav/pkg/utils"
+	"github.com/pablospe/diffnav/pkg/config"
+	"github.com/pablospe/diffnav/pkg/filenode"
+	"github.com/pablospe/diffnav/pkg/ui/common"
+	"github.com/pablospe/diffnav/pkg/ui/panes/diffviewer"
+	"github.com/pablospe/diffnav/pkg/ui/panes/filetree"
+	"github.com/pablospe/diffnav/pkg/utils"
 )
 
 const (

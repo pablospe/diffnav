@@ -7,7 +7,7 @@ import (
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 
-	"github.com/dlvhdr/diffnav/pkg/filenode"
+	"github.com/pablospe/diffnav/pkg/filenode"
 )
 
 func sortFiles(files []*gitdiff.File) {

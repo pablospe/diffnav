@@ -12,10 +12,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/tree"
 
-	"github.com/dlvhdr/diffnav/pkg/constants"
-	"github.com/dlvhdr/diffnav/pkg/filenode"
-	"github.com/dlvhdr/diffnav/pkg/ui/common"
-	"github.com/dlvhdr/diffnav/pkg/utils"
+	"github.com/pablospe/diffnav/pkg/constants"
+	"github.com/pablospe/diffnav/pkg/filenode"
+	"github.com/pablospe/diffnav/pkg/ui/common"
+	"github.com/pablospe/diffnav/pkg/utils"
 )
 
 type Model struct {

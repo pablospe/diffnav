@@ -13,8 +13,8 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
 
-	"github.com/dlvhdr/diffnav/pkg/config"
-	"github.com/dlvhdr/diffnav/pkg/ui"
+	"github.com/pablospe/diffnav/pkg/config"
+	"github.com/pablospe/diffnav/pkg/ui"
 )
 
 func main() {
