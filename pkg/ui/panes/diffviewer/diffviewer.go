@@ -50,7 +50,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 	case diffContentMsg:
-		m.vp.SetContent(msg.text)
+		// Truncate lines to viewport width to prevent overflow.
+		lines := strings.Split(msg.text, "\n")
+		for i, line := range lines {
+			if lipgloss.Width(line) > m.vp.Width && m.vp.Width > 0 {
+				lines[i] = truncateWithAnsi(line, m.vp.Width)
+			}
+		}
+		m.vp.SetContent(strings.Join(lines, "\n"))
 	}
 
 	return m, tea.Batch(cmds...)
@@ -140,7 +147,11 @@ func diff(file *gitdiff.File, width int) tea.Cmd {
 	}
 	return func() tea.Msg {
 		sideBySide := !file.IsNew && !file.IsDelete
-		args := []string{"--paging=never", fmt.Sprintf("-w=%d", width)}
+		args := []string{
+			"--paging=never",
+			fmt.Sprintf("-w=%d", width),
+			fmt.Sprintf("--max-line-length=%d", width),
+		}
 		if sideBySide {
 			args = append(args, "--side-by-side")
 		}
@@ -159,4 +170,39 @@ func diff(file *gitdiff.File, width int) tea.Cmd {
 
 type diffContentMsg struct {
 	text string
+}
+
+// truncateWithAnsi truncates a string with ANSI codes to maxWidth visible characters.
+func truncateWithAnsi(s string, maxWidth int) string {
+	if maxWidth <= 0 {
+		return ""
+	}
+	var result strings.Builder
+	width := 0
+	inEscape := false
+
+	for _, r := range s {
+		if r == '\x1b' {
+			inEscape = true
+			result.WriteRune(r)
+			continue
+		}
+		if inEscape {
+			result.WriteRune(r)
+			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
+				inEscape = false
+			}
+			continue
+		}
+		// Check if adding this rune would exceed width.
+		runeWidth := lipgloss.Width(string(r))
+		if width+runeWidth > maxWidth {
+			break
+		}
+		width += runeWidth
+		result.WriteRune(r)
+	}
+	// Add ANSI reset to prevent color bleeding.
+	result.WriteString("\x1b[0m")
+	return result.String()
 }
