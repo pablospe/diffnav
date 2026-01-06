@@ -50,7 +50,14 @@ git config --global pager.diff diffnav
 
 ## Configuration
 
-Create a config file at `~/.config/diffnav/config.toml`:
+The config file is searched in this order:
+
+1. `$DIFFNAV_CONFIG_DIR/config.toml` (if env var is set)
+2. `~/.config/diffnav/config.toml` (macOS and Linux)
+3. `$XDG_CONFIG_HOME/diffnav/config.toml` (if set, macOS only)
+4. OS-specific config directory (e.g., `~/Library/Application Support/diffnav/config.toml` on macOS)
+
+Example config file:
 
 ```toml
 # Hide the header to get more screen space for diffs
