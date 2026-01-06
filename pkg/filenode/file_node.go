@@ -19,9 +19,9 @@ func (f FileNode) Path() string {
 }
 
 func (f FileNode) Value() string {
-	icon := "" // default: modified
+	icon := "" // default: modified
 	if f.File.IsNew {
-		icon = ""
+		icon = ""
 	} else if f.File.IsDelete {
 		icon = ""
 	}
