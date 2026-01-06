@@ -27,6 +27,13 @@ const (
 	searchHeight = 3
 )
 
+type Panel int
+
+const (
+	FileTreePanel Panel = iota
+	DiffViewerPanel
+)
+
 type mainModel struct {
 	input             string
 	files             []*gitdiff.File
@@ -36,6 +43,7 @@ type mainModel struct {
 	width             int
 	height            int
 	isShowingFileTree bool
+	activePanel       Panel
 	search            textinput.Model
 	help              help.Model
 	resultsVp         viewport.Model
@@ -45,7 +53,7 @@ type mainModel struct {
 }
 
 func New(input string) mainModel {
-	m := mainModel{input: input, isShowingFileTree: true}
+	m := mainModel{input: input, isShowingFileTree: true, activePanel: FileTreePanel}
 	m.fileTree = filetree.New()
 	m.diffViewer = diffviewer.New()
 
@@ -103,19 +111,36 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, dfCmd, m.search.Focus())
 			case "e":
 				m.isShowingFileTree = !m.isShowingFileTree
+				if !m.isShowingFileTree {
+					m.activePanel = DiffViewerPanel
+				}
 				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-footerHeight-headerHeight)
 				cmds = append(cmds, dfCmd)
+			case "left", "h":
+				if m.isShowingFileTree {
+					m.activePanel = FileTreePanel
+				}
+			case "right", "l":
+				m.activePanel = DiffViewerPanel
 			case "up", "k", "ctrl+p":
-				if m.cursor > 0 {
-					m.diffViewer.GoToTop()
-					cmd = m.setCursor(m.cursor - 1)
-					cmds = append(cmds, cmd)
+				if m.activePanel == FileTreePanel {
+					if m.cursor > 0 {
+						m.diffViewer.GoToTop()
+						cmd = m.setCursor(m.cursor - 1)
+						cmds = append(cmds, cmd)
+					}
+				} else {
+					m.diffViewer.LineUp(1)
 				}
 			case "down", "j", "ctrl+n":
-				if m.cursor < len(m.files)-1 {
-					m.diffViewer.GoToTop()
-					cmd = m.setCursor(m.cursor + 1)
-					cmds = append(cmds, cmd)
+				if m.activePanel == FileTreePanel {
+					if m.cursor < len(m.files)-1 {
+						m.diffViewer.GoToTop()
+						cmd = m.setCursor(m.cursor + 1)
+						cmds = append(cmds, cmd)
+					}
+				} else {
+					m.diffViewer.LineDown(1)
 				}
 			case "y":
 				cmd = m.fileTree.CopyFilePath(m.cursor)
@@ -217,12 +242,37 @@ func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
 
 func (m mainModel) View() string {
 	header := lipgloss.NewStyle().Width(m.width).
-		Border(lipgloss.NormalBorder(), false, false, true, false).
-		BorderForeground(lipgloss.Color("8")).
 		Foreground(lipgloss.Color("6")).
 		Bold(true).
 		Render("DIFFNAV")
 	footer := m.footerView()
+
+	// Determine colors based on active panel.
+	leftColor := lipgloss.Color("8")
+	rightColor := lipgloss.Color("8")
+	if m.activePanel == FileTreePanel && !m.searching {
+		leftColor = lipgloss.Color("4")
+	} else if m.activePanel == DiffViewerPanel {
+		rightColor = lipgloss.Color("4")
+	}
+
+	// Build T-shaped separator line.
+	separator := ""
+	if m.width > 0 {
+		if m.isShowingFileTree {
+			sidebarW := m.sidebarWidth()
+			rightW := m.width - sidebarW - 1
+			if rightW < 0 {
+				rightW = 0
+			}
+			leftLine := lipgloss.NewStyle().Foreground(leftColor).Render(strings.Repeat("─", sidebarW))
+			junction := lipgloss.NewStyle().Foreground(leftColor).Render("┬")
+			rightLine := lipgloss.NewStyle().Foreground(rightColor).Render(strings.Repeat("─", rightW))
+			separator = leftLine + junction + rightLine
+		} else {
+			separator = lipgloss.NewStyle().Foreground(rightColor).Render(strings.Repeat("─", m.width))
+		}
+	}
 
 	sidebar := ""
 	if m.isShowingFileTree {
@@ -243,16 +293,17 @@ func (m mainModel) View() string {
 
 		content = lipgloss.NewStyle().
 			Width(width).
-			Height(m.height - footerHeight - headerHeight).Render(lipgloss.JoinVertical(lipgloss.Left, search, content))
+			Height(m.height - footerHeight - headerHeight - 1).Render(lipgloss.JoinVertical(lipgloss.Left, search, content))
 
 		sidebar = lipgloss.NewStyle().
 			Width(width).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
-			BorderForeground(lipgloss.Color("8")).Render(content)
+			BorderForeground(leftColor).Render(content)
 	}
-	dv := lipgloss.NewStyle().MaxHeight(m.height - footerHeight - headerHeight).Width(m.width - m.sidebarWidth()).Render(m.diffViewer.View())
+	dv := lipgloss.NewStyle().MaxHeight(m.height - footerHeight - headerHeight - 1).Width(m.width - m.sidebarWidth()).Render(m.diffViewer.View())
 	return lipgloss.JoinVertical(lipgloss.Left,
 		header,
+		separator,
 		lipgloss.JoinHorizontal(lipgloss.Top, sidebar, dv),
 		footer,
 	)
