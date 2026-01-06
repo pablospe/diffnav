@@ -23,13 +23,14 @@ type Model struct {
 	tree         *tree.Tree
 	vp           viewport.Model
 	selectedFile *string
+	iconStyle    string
 }
 
 func (m Model) SetFiles(files []*gitdiff.File) Model {
 	m.files = files
-	t := buildFullFileTree(files)
+	t := buildFullFileTree(files, m.iconStyle)
 	collapsed := collapseTree(t)
-	m.tree, _ = truncateTree(collapsed, 0, 0, 0)
+	m.tree, _ = truncateTree(collapsed, 0, 0, 0, m.iconStyle)
 	m.vp.SetContent(m.printWithoutRoot())
 	return m
 }
@@ -89,10 +90,11 @@ func (m *Model) scrollSelectedFileIntoView(t *tree.Tree) {
 	}
 }
 
-func New() Model {
+func New(iconStyle string) Model {
 	return Model{
-		files: []*gitdiff.File{},
-		vp:    viewport.Model{},
+		files:     []*gitdiff.File{},
+		vp:        viewport.Model{},
+		iconStyle: iconStyle,
 	}
 }
 
@@ -222,7 +224,7 @@ func normalizeDepth(node *tree.Tree, depth int) *tree.Tree {
 	return t
 }
 
-func buildFullFileTree(files []*gitdiff.File) *tree.Tree {
+func buildFullFileTree(files []*gitdiff.File, iconStyle string) *tree.Tree {
 	t := tree.Root(".")
 	for _, file := range files {
 		subTree := t
@@ -258,7 +260,7 @@ func buildFullFileTree(files []*gitdiff.File) *tree.Tree {
 		for i, part := range parts {
 			var c *tree.Tree
 			if i == len(parts)-1 {
-				subTree.Child(filenode.FileNode{File: file})
+				subTree.Child(filenode.FileNode{File: file, IconStyle: iconStyle})
 			} else {
 				c = tree.Root(part)
 				subTree.Child(c)
@@ -308,7 +310,7 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 
 const dirIcon = " "
 
-func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int) (*tree.Tree, int) {
+func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int, iconStyle string) (*tree.Tree, int) {
 	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), constants.OpenFileTreeWidth-depth*2))
 	numNodes++
 	children := t.Children()
@@ -317,13 +319,13 @@ func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int) (*tree
 		numChildren++
 		switch child := child.(type) {
 		case *tree.Tree:
-			sub, subNum := truncateTree(child, depth+1, numNodes, 0)
+			sub, subNum := truncateTree(child, depth+1, numNodes, 0, iconStyle)
 			numChildren += subNum
 			numNodes += subNum + 1
 			newT.Child(sub)
 		case filenode.FileNode:
 			numNodes++
-			newT.Child(filenode.FileNode{File: child.File, Depth: depth + 1, YOffset: numNodes})
+			newT.Child(filenode.FileNode{File: child.File, Depth: depth + 1, YOffset: numNodes, IconStyle: iconStyle})
 		default:
 			newT.Child(child)
 		}

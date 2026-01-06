@@ -8,10 +8,18 @@ import (
 	"github.com/charmbracelet/lipgloss/tree"
 )
 
+// Icon style constants.
+const (
+	IconsNerdFonts = "nerd-fonts"
+	IconsUnicode   = "unicode"
+	IconsASCII     = "ascii"
+)
+
 type FileNode struct {
-	File    *gitdiff.File
-	Depth   int
-	YOffset int
+	File      *gitdiff.File
+	Depth     int
+	YOffset   int
+	IconStyle string
 }
 
 func (f FileNode) Path() string {
@@ -19,14 +27,35 @@ func (f FileNode) Path() string {
 }
 
 func (f FileNode) Value() string {
-	icon := "" // default: modified
-	if f.File.IsNew {
-		icon = ""
-	} else if f.File.IsDelete {
-		icon = ""
-	}
+	icon := f.getIcon()
 	name := filepath.Base(f.Path())
 	return icon + " " + name
+}
+
+func (f FileNode) getIcon() string {
+	switch f.IconStyle {
+	case IconsNerdFonts:
+		if f.File.IsNew {
+			return ""
+		} else if f.File.IsDelete {
+			return ""
+		}
+		return ""
+	case IconsASCII:
+		if f.File.IsNew {
+			return "+"
+		} else if f.File.IsDelete {
+			return "-"
+		}
+		return "~"
+	default: // unicode
+		if f.File.IsNew {
+			return "✚"
+		} else if f.File.IsDelete {
+			return "✖"
+		}
+		return "●"
+	}
 }
 
 // StatusColor returns the color for this file based on its git status.

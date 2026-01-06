@@ -9,11 +9,12 @@ import (
 )
 
 type Config struct {
-	HideHeader      bool `toml:"hide_header"`
-	HideFooter      bool `toml:"hide_footer"`
-	ShowFileTree    bool `toml:"show_file_tree"`
-	FileTreeWidth   int  `toml:"file_tree_width"`
-	SearchTreeWidth int  `toml:"search_tree_width"`
+	HideHeader      bool   `toml:"hide_header"`
+	HideFooter      bool   `toml:"hide_footer"`
+	ShowFileTree    bool   `toml:"show_file_tree"`
+	FileTreeWidth   int    `toml:"file_tree_width"`
+	SearchTreeWidth int    `toml:"search_tree_width"`
+	Icons           string `toml:"icons"` // "nerd-fonts", "unicode" (default), "ascii"
 }
 
 func DefaultConfig() Config {
@@ -23,6 +24,7 @@ func DefaultConfig() Config {
 		ShowFileTree:    true,
 		FileTreeWidth:   26,
 		SearchTreeWidth: 50,
+		Icons:           "unicode",
 	}
 }
 
