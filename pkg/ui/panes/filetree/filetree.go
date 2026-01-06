@@ -361,7 +361,7 @@ func applyStyleToNode(node tree.Node, selectedFile *string) lipgloss.Style {
 		if selectedFile != nil && n.Path() == *selectedFile {
 			return st.Bold(true).Foreground(lipgloss.Color("5")).Reverse(true)
 		}
-		return st
+		return st.Foreground(n.StatusColor())
 	case *tree.Tree:
 		return st.Foreground(lipgloss.Color("4"))
 	default:

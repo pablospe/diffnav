@@ -2,14 +2,10 @@ package filenode
 
 import (
 	"path/filepath"
-	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/tree"
-
-	"github.com/pablospe/diffnav/pkg/constants"
-	"github.com/pablospe/diffnav/pkg/utils"
 )
 
 type FileNode struct {
@@ -23,32 +19,24 @@ func (f FileNode) Path() string {
 }
 
 func (f FileNode) Value() string {
-	icon := " "
-	status := " "
+	icon := "" // default: modified
 	if f.File.IsNew {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("")
+		icon = ""
 	} else if f.File.IsDelete {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render("")
-	} else {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render("")
+		icon = ""
 	}
+	name := filepath.Base(f.Path())
+	return icon + " " + name
+}
 
-	depthWidth := f.Depth * 2
-	iconsWidth := lipgloss.Width(icon) + lipgloss.Width(status)
-	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconsWidth
-	base := filepath.Base(f.Path())
-	name := utils.TruncateString(base, nameMaxWidth)
-
-	spacerWidth := constants.OpenFileTreeWidth - lipgloss.Width(name) - iconsWidth - depthWidth
-	if len(name) < len(base) {
-		spacerWidth = spacerWidth - 1
+// StatusColor returns the color for this file based on its git status.
+func (f FileNode) StatusColor() lipgloss.Color {
+	if f.File.IsNew {
+		return lipgloss.Color("2") // green
+	} else if f.File.IsDelete {
+		return lipgloss.Color("1") // red
 	}
-	spacer := ""
-	if spacerWidth > 0 {
-		spacer = strings.Repeat(" ", spacerWidth)
-	}
-
-	return lipgloss.JoinHorizontal(lipgloss.Top, icon, name, spacer, status)
+	return lipgloss.Color("3") // yellow/orange
 }
 
 func (f FileNode) String() string {
