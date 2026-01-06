@@ -303,15 +303,27 @@ func (m mainModel) View() string {
 
 		content = lipgloss.NewStyle().
 			Width(width).
+<<<<<<< HEAD
+			Height(m.height - m.footerHeight() - m.headerHeight() - 1).Render(lipgloss.JoinVertical(lipgloss.Left, search, content))
+||||||| 3633f26
+			Height(m.height - m.footerHeight() - m.headerHeight()).Render(lipgloss.JoinVertical(lipgloss.Left, search, content))
+=======
 			Height(m.height - m.footerHeight() - m.headerHeight()).Render(lipgloss.JoinVertical(lipgloss.Left, searchBox, content))
+>>>>>>> mouse-support-fork
 
 		sidebar = lipgloss.NewStyle().
 			Width(width).
 			Border(lipgloss.NormalBorder(), false, true, false, false).
 			BorderForeground(leftColor).Render(content)
 	}
+<<<<<<< HEAD
+	dv := lipgloss.NewStyle().MaxHeight(m.height - m.footerHeight() - m.headerHeight() - 1).Width(m.width - m.sidebarWidth()).Render(m.diffViewer.View())
+||||||| 3633f26
+	dv := lipgloss.NewStyle().MaxHeight(m.height - m.footerHeight() - m.headerHeight()).Width(m.width - m.sidebarWidth()).Render(m.diffViewer.View())
+=======
 	dv := lipgloss.NewStyle().MaxHeight(m.height - m.footerHeight() - m.headerHeight()).Width(m.width - m.sidebarWidth()).Render(m.diffViewer.View())
 	dv = zone.Mark(zoneDiffViewer, dv)
+>>>>>>> mouse-support-fork
 
 	mainContent := lipgloss.JoinHorizontal(lipgloss.Top, sidebar, dv)
 
@@ -522,8 +534,12 @@ func (m mainModel) handleFileTreeClick(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	// Find file index by path.
 	for i, f := range m.files {
 		if filenode.GetFileName(f) == filePath {
+			m.cursor = i
 			m.diffViewer.GoToTop()
-			cmd := m.setCursor(i)
+			var cmd tea.Cmd
+			m.diffViewer, cmd = m.diffViewer.SetFilePatch(f)
+			// Use SetCursorNoScroll to avoid jumping the file tree view.
+			m.fileTree = m.fileTree.SetCursorNoScroll(i)
 			return m, cmd
 		}
 	}
