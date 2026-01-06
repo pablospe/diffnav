@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
 
+	"github.com/dlvhdr/diffnav/pkg/config"
 	"github.com/dlvhdr/diffnav/pkg/ui"
 )
 
@@ -73,7 +74,8 @@ func main() {
 		fmt.Println("No input provided, exiting")
 		os.Exit(0)
 	}
-	p := tea.NewProgram(ui.New(input), tea.WithMouseAllMotion())
+	cfg := config.Load()
+	p := tea.NewProgram(ui.New(input, cfg), tea.WithMouseAllMotion())
 
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
