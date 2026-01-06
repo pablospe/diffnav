@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/tree"
 
-	"github.com/dlvhdr/diffnav/pkg/constants"
-	"github.com/dlvhdr/diffnav/pkg/utils"
+	"github.com/pablospe/diffnav/pkg/constants"
+	"github.com/pablospe/diffnav/pkg/utils"
 )
 
 type FileNode struct {

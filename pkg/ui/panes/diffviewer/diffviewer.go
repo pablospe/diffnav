@@ -12,7 +12,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"github.com/dlvhdr/diffnav/pkg/ui/common"
+	"github.com/pablospe/diffnav/pkg/ui/common"
 )
 
 const dirHeaderHeight = 3
