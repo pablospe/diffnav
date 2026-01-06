@@ -16,6 +16,7 @@ type FileNode struct {
 	File    *gitdiff.File
 	Depth   int
 	YOffset int
+	Width   int
 }
 
 func (f FileNode) Path() string {
@@ -33,13 +34,19 @@ func (f FileNode) Value() string {
 		status += lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render("")
 	}
 
+	// Use the stored width if available, otherwise fall back to constant.
+	width := f.Width
+	if width == 0 {
+		width = constants.OpenFileTreeWidth
+	}
+
 	depthWidth := f.Depth * 2
 	iconsWidth := lipgloss.Width(icon) + lipgloss.Width(status)
-	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconsWidth
+	nameMaxWidth := width - depthWidth - iconsWidth
 	base := filepath.Base(f.Path())
 	name := utils.TruncateString(base, nameMaxWidth)
 
-	spacerWidth := constants.OpenFileTreeWidth - lipgloss.Width(name) - iconsWidth - depthWidth
+	spacerWidth := width - lipgloss.Width(name) - iconsWidth - depthWidth
 	if len(name) < len(base) {
 		spacerWidth = spacerWidth - 1
 	}

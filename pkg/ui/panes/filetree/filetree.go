@@ -23,6 +23,7 @@ type Model struct {
 	tree         *tree.Tree
 	vp           viewport.Model
 	selectedFile *string
+	width        int
 }
 
 // isRootHidden returns true if the tree root is hidden (not displayed).
@@ -34,7 +35,7 @@ func (m Model) SetFiles(files []*gitdiff.File) Model {
 	m.files = files
 	t := buildFullFileTree(files)
 	collapsed := collapseTree(t)
-	m.tree, _ = truncateTree(collapsed, 0, 0, 0)
+	m.tree, _ = truncateTree(collapsed, 0, 0, 0, m.width)
 	m.vp.SetContent(m.printWithoutRoot())
 	return m
 }
@@ -152,6 +153,18 @@ func (m Model) View() string {
 func (m *Model) SetSize(width, height int) tea.Cmd {
 	m.vp.Width = width
 	m.vp.Height = height
+
+	// Regenerate tree if width changed and we have files.
+	if m.width != width && len(m.files) > 0 {
+		m.width = width
+		t := buildFullFileTree(m.files)
+		collapsed := collapseTree(t)
+		m.tree, _ = truncateTree(collapsed, 0, 0, 0, m.width)
+		applyStyles(m.tree, m.selectedFile)
+		m.vp.SetContent(m.printWithoutRoot())
+	}
+	m.width = width
+
 	return nil
 }
 
@@ -332,8 +345,12 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 
 const dirIcon = " "
 
-func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int) (*tree.Tree, int) {
-	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), constants.OpenFileTreeWidth-depth*2))
+func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int, width int) (*tree.Tree, int) {
+	truncWidth := constants.OpenFileTreeWidth
+	if width > 0 {
+		truncWidth = width
+	}
+	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), truncWidth-depth*2))
 	numNodes++
 	children := t.Children()
 	for i := 0; i < children.Length(); i++ {
@@ -341,13 +358,13 @@ func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int) (*tree
 		numChildren++
 		switch child := child.(type) {
 		case *tree.Tree:
-			sub, subNum := truncateTree(child, depth+1, numNodes, 0)
+			sub, subNum := truncateTree(child, depth+1, numNodes, 0, width)
 			numChildren += subNum
 			numNodes += subNum + 1
 			newT.Child(sub)
 		case filenode.FileNode:
 			numNodes++
-			newT.Child(filenode.FileNode{File: child.File, Depth: depth + 1, YOffset: numNodes})
+			newT.Child(filenode.FileNode{File: child.File, Depth: depth + 1, YOffset: numNodes, Width: width})
 		default:
 			newT.Child(child)
 		}
