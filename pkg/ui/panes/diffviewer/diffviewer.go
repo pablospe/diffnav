@@ -116,6 +116,16 @@ func (m *Model) GoToTop() {
 	m.vp.GotoTop()
 }
 
+// ScrollUp scrolls the viewport up by the given number of lines.
+func (m *Model) ScrollUp(lines int) {
+	m.vp.LineUp(lines)
+}
+
+// ScrollDown scrolls the viewport down by the given number of lines.
+func (m *Model) ScrollDown(lines int) {
+	m.vp.LineDown(lines)
+}
+
 func diff(file *gitdiff.File, width int) tea.Cmd {
 	if width == 0 || file == nil {
 		return nil
