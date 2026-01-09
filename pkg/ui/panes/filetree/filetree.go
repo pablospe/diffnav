@@ -25,6 +25,11 @@ type Model struct {
 	selectedFile *string
 }
 
+// isRootHidden returns true if the tree root is hidden (not displayed).
+func (m Model) isRootHidden() bool {
+	return m.tree != nil && m.tree.Value() == dirIcon+"."
+}
+
 func (m Model) SetFiles(files []*gitdiff.File) Model {
 	m.files = files
 	t := buildFullFileTree(files)
@@ -42,6 +47,19 @@ func (m Model) SetCursor(cursor int) Model {
 	m.selectedFile = &name
 	applyStyles(m.tree, m.selectedFile)
 	m.scrollSelectedFileIntoView(m.tree)
+	m.vp.SetContent(m.printWithoutRoot())
+	return m
+}
+
+// SetCursorNoScroll updates the selected file without scrolling the viewport.
+// Use this when the user clicks on a file they can already see.
+func (m Model) SetCursorNoScroll(cursor int) Model {
+	if len(m.files) == 0 {
+		return m
+	}
+	name := filenode.GetFileName(m.files[cursor])
+	m.selectedFile = &name
+	applyStyles(m.tree, m.selectedFile)
 	m.vp.SetContent(m.printWithoutRoot())
 	return m
 }
@@ -74,8 +92,7 @@ func (m *Model) scrollSelectedFileIntoView(t *tree.Tree) {
 			if child.Path() == *m.selectedFile {
 				// offset is 1-based, so we need to subtract 1
 				offset := child.YOffset - 1 - contextLines
-				// we also need to subtract 1 if the root is not shown
-				if m.tree.Value() == "." {
+				if m.isRootHidden() {
 					offset = offset - 1
 				}
 				m.vp.SetYOffset(offset)
@@ -138,8 +155,56 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 	return nil
 }
 
+// GetYOffset returns the viewport's current Y scroll offset.
+func (m Model) GetYOffset() int {
+	return m.vp.YOffset
+}
+
+// GetFileAtY returns the file path at the given Y coordinate (0-indexed visual line), or "" if none.
+func (m Model) GetFileAtY(y int) string {
+	if m.tree == nil {
+		return ""
+	}
+	// Convert visual line (0-indexed) to YOffset (1-indexed from tree traversal).
+	// YOffset starts at 1 for root, 2 for first child, etc.
+	yOffset := y + 1
+	if m.isRootHidden() {
+		yOffset++ // Root is hidden, so visual line 0 = YOffset 2.
+	}
+	return m.findFileAtY(m.tree, yOffset)
+}
+
+// findFileAtY traverses the tree to find the FileNode at position y.
+func (m Model) findFileAtY(t *tree.Tree, y int) string {
+	children := t.Children()
+	for i := 0; i < children.Length(); i++ {
+		child := children.At(i)
+		switch c := child.(type) {
+		case *tree.Tree:
+			if result := m.findFileAtY(c, y); result != "" {
+				return result
+			}
+		case filenode.FileNode:
+			if c.YOffset == y {
+				return c.Path()
+			}
+		}
+	}
+	return ""
+}
+
+// ScrollUp scrolls the viewport up by the given number of lines.
+func (m *Model) ScrollUp(lines int) {
+	m.vp.LineUp(lines)
+}
+
+// ScrollDown scrolls the viewport down by the given number of lines.
+func (m *Model) ScrollDown(lines int) {
+	m.vp.LineDown(lines)
+}
+
 func (m Model) printWithoutRoot() string {
-	if m.tree.Value() != dirIcon+"." {
+	if !m.isRootHidden() {
 		return m.tree.String()
 	}
 
