@@ -394,12 +394,13 @@ func applyStyleAux(children tree.Children, i int, selectedFile *string) lipgloss
 }
 
 func applyStyleToNode(node tree.Node, selectedFile *string) lipgloss.Style {
-	st := lipgloss.NewStyle().MaxHeight(1)
+	st := lipgloss.NewStyle()
 	switch n := node.(type) {
 	case filenode.FileNode:
 		if selectedFile != nil && n.Path() == *selectedFile {
-			return st.Background(lipgloss.Color("#1b1b33")).Bold(true)
+			return st.Bold(true).Foreground(lipgloss.Color("5")).Reverse(true)
 		}
+		return st.Foreground(n.StatusColor())
 	case *tree.Tree:
 		return st.Foreground(lipgloss.Color("4"))
 	default:
