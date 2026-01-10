@@ -347,7 +347,7 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 
 func getDirIcon(iconStyle string) string {
 	switch iconStyle {
-	case filenode.IconsNerdFonts, filenode.IconsSimple:
+	case filenode.IconsNerdFonts, filenode.IconsNerdFontsAlt:
 		return " "
 	case filenode.IconsUnicode:
 		return "▶ "

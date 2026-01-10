@@ -71,7 +71,7 @@ ui:
   # Customize the search panel width (default: 50)
   searchTreeWidth: 60
 
-  # Icon style: "ascii" (default), "unicode", "nerd-fonts", or "simple"
+  # Icon style: "ascii" (default), "unicode", "nerd-fonts", or "nerd-fonts-alt"
   icons: nerd-fonts
 ```
 
@@ -82,7 +82,7 @@ ui:
 | `ui.showFileTree`   | bool   | `true`  | Show file tree on startup             |
 | `ui.fileTreeWidth`  | int    | `26`    | Width of the file tree sidebar        |
 | `ui.searchTreeWidth`| int    | `50`    | Width of the search panel             |
-| `ui.icons`          | string | `ascii` | Icon style: `ascii`, `unicode`, `nerd-fonts`, or `simple` |
+| `ui.icons`          | string | `ascii` | Icon style: `ascii`, `unicode`, `nerd-fonts`, or `nerd-fonts-alt` |
 
 ### Delta
 
