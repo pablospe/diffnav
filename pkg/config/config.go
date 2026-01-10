@@ -14,7 +14,7 @@ type UIConfig struct {
 	ShowFileTree    bool   `yaml:"showFileTree"`
 	FileTreeWidth   int    `yaml:"fileTreeWidth"`
 	SearchTreeWidth int    `yaml:"searchTreeWidth"`
-	Icons           string `yaml:"icons"` // "nerd-fonts", "unicode", "ascii" (default)
+	Icons           string `yaml:"icons"` // "nerd-fonts" (default), "nerd-fonts-alt", "unicode", "ascii"
 }
 
 type Config struct {
@@ -29,7 +29,7 @@ func DefaultConfig() Config {
 			ShowFileTree:    true,
 			FileTreeWidth:   26,
 			SearchTreeWidth: 50,
-			Icons:           "ascii",
+			Icons:           "nerd-fonts",
 		},
 	}
 }
