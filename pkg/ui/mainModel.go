@@ -263,13 +263,14 @@ func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
 					if filenode.GetFileName(f) == selected {
 						m.cursor = i
 						m.diffViewer, cmd = m.diffViewer.SetFilePatch(f)
+						m.fileTree = m.fileTree.SetCursor(i)
 						cmds = append(cmds, cmd)
 						break
 					}
 				}
 
 			case "ctrl+n", "down":
-				m.resultsCursor = min(len(m.files)-1, m.resultsCursor+1)
+				m.resultsCursor = min(len(m.filtered)-1, m.resultsCursor+1)
 				m.resultsVp.LineDown(1)
 			case "ctrl+p", "up":
 				m.resultsCursor = max(0, m.resultsCursor-1)
