@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
@@ -173,6 +175,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			case "y":
 				cmd = m.fileTree.CopyFilePath(m.cursor)
+				if cmd != nil {
+					cmds = append(cmds, cmd)
+				}
+			case "o":
+				cmd = m.openInEditor()
 				if cmd != nil {
 					cmds = append(cmds, cmd)
 				}
@@ -454,6 +461,23 @@ func (m *mainModel) setCursor(cursor int) tea.Cmd {
 	m.diffViewer, cmd = m.diffViewer.SetFilePatch(m.files[m.cursor])
 	m.fileTree = m.fileTree.SetCursor(m.cursor)
 	return cmd
+}
+
+func (m mainModel) openInEditor() tea.Cmd {
+	if len(m.files) == 0 {
+		return nil
+	}
+
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		return nil
+	}
+
+	filePath := filenode.GetFileName(m.files[m.cursor])
+	c := exec.Command(editor, filePath)
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		return nil
+	})
 }
 
 func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
