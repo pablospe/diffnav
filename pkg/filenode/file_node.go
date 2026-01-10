@@ -12,10 +12,18 @@ import (
 	"github.com/dlvhdr/diffnav/pkg/utils"
 )
 
+// Icon style constants.
+const (
+	IconsNerdFonts = "nerd-fonts"
+	IconsUnicode   = "unicode"
+	IconsASCII     = "ascii"
+)
+
 type FileNode struct {
-	File    *gitdiff.File
-	Depth   int
-	YOffset int
+	File      *gitdiff.File
+	Depth     int
+	YOffset   int
+	IconStyle string
 }
 
 func (f FileNode) Path() string {
@@ -23,15 +31,8 @@ func (f FileNode) Path() string {
 }
 
 func (f FileNode) Value() string {
-	icon := " "
-	status := " "
-	if f.File.IsNew {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("")
-	} else if f.File.IsDelete {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render("")
-	} else {
-		status += lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render("")
-	}
+	icon := " "
+	status := " " + f.getStatusIcon()
 
 	depthWidth := f.Depth * 2
 	iconsWidth := lipgloss.Width(icon) + lipgloss.Width(status)
@@ -49,6 +50,45 @@ func (f FileNode) Value() string {
 	}
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, icon, name, spacer, status)
+}
+
+func (f FileNode) getStatusIcon() string {
+	color := f.StatusColor()
+	style := lipgloss.NewStyle().Foreground(color)
+
+	switch f.IconStyle {
+	case IconsNerdFonts:
+		if f.File.IsNew {
+			return style.Render("")
+		} else if f.File.IsDelete {
+			return style.Render("")
+		}
+		return style.Render("")
+	case IconsUnicode:
+		if f.File.IsNew {
+			return style.Render("+")
+		} else if f.File.IsDelete {
+			return style.Render("⛌")
+		}
+		return style.Render("●")
+	default: // ascii
+		if f.File.IsNew {
+			return style.Render("+")
+		} else if f.File.IsDelete {
+			return style.Render("x")
+		}
+		return style.Render("*")
+	}
+}
+
+// StatusColor returns the color for this file based on its git status.
+func (f FileNode) StatusColor() lipgloss.Color {
+	if f.File.IsNew {
+		return lipgloss.Color("2") // green
+	} else if f.File.IsDelete {
+		return lipgloss.Color("1") // red
+	}
+	return lipgloss.Color("3") // yellow
 }
 
 func (f FileNode) String() string {

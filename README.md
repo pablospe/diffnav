@@ -70,15 +70,19 @@ ui:
 
   # Customize the search panel width (default: 50)
   searchTreeWidth: 60
+
+  # Icon style: "ascii" (default), "unicode", or "nerd-fonts"
+  icons: nerd-fonts
 ```
 
-| Option              | Type | Default | Description                           |
-| :------------------ | :--- | :------ | :------------------------------------ |
-| `ui.hideHeader`     | bool | `false` | Hide the "DIFFNAV" header             |
-| `ui.hideFooter`     | bool | `false` | Hide the footer with keybindings help |
-| `ui.showFileTree`   | bool | `true`  | Show file tree on startup             |
-| `ui.fileTreeWidth`  | int  | `26`    | Width of the file tree sidebar        |
-| `ui.searchTreeWidth`| int  | `50`    | Width of the search panel             |
+| Option              | Type   | Default | Description                           |
+| :------------------ | :----- | :------ | :------------------------------------ |
+| `ui.hideHeader`     | bool   | `false` | Hide the "DIFFNAV" header             |
+| `ui.hideFooter`     | bool   | `false` | Hide the footer with keybindings help |
+| `ui.showFileTree`   | bool   | `true`  | Show file tree on startup             |
+| `ui.fileTreeWidth`  | int    | `26`    | Width of the file tree sidebar        |
+| `ui.searchTreeWidth`| int    | `50`    | Width of the search panel             |
+| `ui.icons`          | string | `ascii` | Icon style: `ascii`, `unicode`, or `nerd-fonts` |
 
 ### Delta
 
@@ -97,7 +101,8 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 | <kbd>e</kbd>      | Toggle the file tree |
 | <kbd>t</kbd>      | Search/go-to file    |
 | <kbd>y</kbd>      | Copy file path       |
-| <kbd>Tab</kbd>      | Switch focus between the panes       |
+| <kbd>i</kbd>      | Cycle icon style     |
+| <kbd>Tab</kbd>    | Switch focus between the panes |
 | <kbd>q</kbd>      | Quit                 |
 
 ## Under the hood
