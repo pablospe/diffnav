@@ -10,10 +10,10 @@ import (
 
 // Icon style constants.
 const (
-	IconsNerdFonts        = "nerd-fonts"
-	IconsNerdFontsColored = "nerd-fonts-colored"
-	IconsUnicode          = "unicode"
-	IconsASCII            = "ascii"
+	IconsNerdFonts = "nerd-fonts"
+	IconsSimple    = "simple"
+	IconsUnicode   = "unicode"
+	IconsASCII     = "ascii"
 )
 
 type FileNode struct {
@@ -42,7 +42,7 @@ func (f FileNode) getIcon() string {
 			return ""
 		}
 		return ""
-	case IconsNerdFontsColored:
+	case IconsSimple:
 		return ""
 	case IconsUnicode:
 		if f.File.IsNew {
