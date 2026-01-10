@@ -12,6 +12,7 @@ type KeyMap struct {
 	Quit           key.Binding
 	Copy           key.Binding
 	TogglePanel    key.Binding
+	OpenInEditor   key.Binding
 }
 
 var keys = &KeyMap{
@@ -51,6 +52,10 @@ var keys = &KeyMap{
 		key.WithKeys("tab"),
 		key.WithHelp("TAB", "switch panel"),
 	),
+	OpenInEditor: key.NewBinding(
+		key.WithKeys("o"),
+		key.WithHelp("o", "open"),
+	),
 }
 
 func getKeys() []key.Binding {
@@ -63,6 +68,7 @@ func getKeys() []key.Binding {
 		keys.ToggleFileTree,
 		keys.Search,
 		keys.Copy,
+		keys.OpenInEditor,
 		keys.Quit,
 	}
 }

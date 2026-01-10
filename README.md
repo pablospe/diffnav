@@ -102,6 +102,7 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 | <kbd>t</kbd>      | Search/go-to file    |
 | <kbd>y</kbd>      | Copy file path       |
 | <kbd>i</kbd>      | Cycle icon style     |
+| <kbd>o</kbd>      | Open file in $EDITOR |
 | <kbd>Tab</kbd>    | Switch focus between the panes |
 | <kbd>q</kbd>      | Quit                 |
 
