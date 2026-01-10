@@ -73,6 +73,9 @@ ui:
 
   # Icon style: "nerd-fonts" (default), "nerd-fonts-alt", "unicode", or "ascii"
   icons: nerd-fonts
+
+  # Color filenames by git status (default: false)
+  colorFileNames: true
 ```
 
 | Option              | Type   | Default | Description                           |
@@ -83,6 +86,7 @@ ui:
 | `ui.fileTreeWidth`  | int    | `26`    | Width of the file tree sidebar        |
 | `ui.searchTreeWidth`| int    | `50`    | Width of the search panel             |
 | `ui.icons`          | string | `nerd-fonts` | Icon style: `nerd-fonts`, `nerd-fonts-alt`, `unicode`, or `ascii` |
+| `ui.colorFileNames` | bool   | `false` | Color filenames by git status |
 
 ### Delta
 

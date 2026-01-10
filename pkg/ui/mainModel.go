@@ -77,7 +77,7 @@ type mainModel struct {
 
 func New(input string, cfg config.Config) mainModel {
 	m := mainModel{input: input, isShowingFileTree: cfg.UI.ShowFileTree, activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons}
-	m.fileTree = filetree.New(cfg.UI.Icons)
+	m.fileTree = filetree.New(cfg.UI.Icons, cfg.UI.ColorFileNames)
 	m.diffViewer = diffviewer.New()
 
 	m.help = help.New()

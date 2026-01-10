@@ -14,7 +14,8 @@ type UIConfig struct {
 	ShowFileTree    bool   `yaml:"showFileTree"`
 	FileTreeWidth   int    `yaml:"fileTreeWidth"`
 	SearchTreeWidth int    `yaml:"searchTreeWidth"`
-	Icons           string `yaml:"icons"` // "nerd-fonts" (default), "nerd-fonts-alt", "unicode", "ascii"
+	Icons           string `yaml:"icons"`          // "nerd-fonts" (default), "nerd-fonts-alt", "unicode", "ascii"
+	ColorFileNames  bool   `yaml:"colorFileNames"` // Color filenames by git status (default: false)
 }
 
 type Config struct {

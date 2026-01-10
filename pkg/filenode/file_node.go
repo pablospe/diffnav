@@ -17,10 +17,12 @@ const (
 )
 
 type FileNode struct {
-	File      *gitdiff.File
-	Depth     int
-	YOffset   int
-	IconStyle string
+	File           *gitdiff.File
+	Depth          int
+	YOffset        int
+	IconStyle      string
+	Selected       bool
+	ColorFileNames bool
 }
 
 func (f FileNode) Path() string {
@@ -30,7 +32,25 @@ func (f FileNode) Path() string {
 func (f FileNode) Value() string {
 	icon := f.getIcon()
 	name := filepath.Base(f.Path())
-	return icon + " " + name
+	// Icon is always colored by status
+	coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
+
+	if f.Selected {
+		styledName := lipgloss.NewStyle().
+			Bold(true).
+			Underline(true).
+			Foreground(f.StatusColor()).
+			Render(name)
+		indicator := lipgloss.NewStyle().Foreground(f.StatusColor()).Render("◂")
+		return coloredIcon + " " + styledName + " " + indicator
+	}
+
+	if f.ColorFileNames {
+		styledName := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(name)
+		return coloredIcon + " " + styledName
+	}
+
+	return coloredIcon + " " + name
 }
 
 func (f FileNode) getIcon() string {
