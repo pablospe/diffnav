@@ -34,31 +34,32 @@ func (f FileNode) Value() string {
 }
 
 func (f FileNode) getIcon() string {
+	style := lipgloss.NewStyle().Foreground(f.StatusColor())
+
 	switch f.IconStyle {
 	case IconsNerdFonts:
 		if f.File.IsNew {
-			return ""
+			return style.Render("")
 		} else if f.File.IsDelete {
-			return ""
+			return style.Render("")
 		}
-		return ""
+		return style.Render("")
 	case IconsNerdFontsColored:
-		style := lipgloss.NewStyle().Foreground(f.StatusColor())
 		return style.Render("")
 	case IconsUnicode:
 		if f.File.IsNew {
-			return "+"
+			return style.Render("+")
 		} else if f.File.IsDelete {
-			return "⛌"
+			return style.Render("⛌")
 		}
-		return "●"
+		return style.Render("●")
 	default: // ascii (default)
 		if f.File.IsNew {
-			return "+"
+			return style.Render("+")
 		} else if f.File.IsDelete {
-			return "x"
+			return style.Render("x")
 		}
-		return "*"
+		return style.Render("*")
 	}
 }
 
