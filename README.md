@@ -97,6 +97,7 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 | <kbd>e</kbd>      | Toggle the file tree |
 | <kbd>t</kbd>      | Search/go-to file    |
 | <kbd>y</kbd>      | Copy file path       |
+| <kbd>o</kbd>      | Open file in $EDITOR |
 | <kbd>Tab</kbd>      | Switch focus between the panes       |
 | <kbd>q</kbd>      | Quit                 |
 
