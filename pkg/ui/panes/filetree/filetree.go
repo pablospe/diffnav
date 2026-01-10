@@ -28,7 +28,7 @@ type Model struct {
 
 // isRootHidden returns true if the tree root is hidden (not displayed).
 func (m Model) isRootHidden() bool {
-	return m.tree != nil && m.tree.Value() == dirIcon+"."
+	return m.tree != nil && m.tree.Value() == getDirIcon(m.iconStyle)+"."
 }
 
 func (m Model) SetFiles(files []*gitdiff.File) Model {
@@ -345,9 +345,19 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 	return newT
 }
 
-const dirIcon = " "
+func getDirIcon(iconStyle string) string {
+	switch iconStyle {
+	case filenode.IconsNerdFonts, filenode.IconsNerdFontsColored:
+		return " "
+	case filenode.IconsUnicode:
+		return "▶ "
+	default: // ascii
+		return "> "
+	}
+}
 
 func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int, iconStyle string) (*tree.Tree, int) {
+	dirIcon := getDirIcon(iconStyle)
 	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), constants.OpenFileTreeWidth-depth*2))
 	numNodes++
 	children := t.Children()
