@@ -9,11 +9,13 @@ import (
 )
 
 type UIConfig struct {
-	HideHeader      bool `yaml:"hideHeader"`
-	HideFooter      bool `yaml:"hideFooter"`
-	ShowFileTree    bool `yaml:"showFileTree"`
-	FileTreeWidth   int  `yaml:"fileTreeWidth"`
-	SearchTreeWidth int  `yaml:"searchTreeWidth"`
+	HideHeader      bool   `yaml:"hideHeader"`
+	HideFooter      bool   `yaml:"hideFooter"`
+	ShowFileTree    bool   `yaml:"showFileTree"`
+	FileTreeWidth   int    `yaml:"fileTreeWidth"`
+	SearchTreeWidth int    `yaml:"searchTreeWidth"`
+	Icons           string `yaml:"icons"`          // "nerd-fonts" (default), "nerd-fonts-alt", "unicode", "ascii"
+	ColorFileNames  bool   `yaml:"colorFileNames"` // Color filenames by git status (default: true)
 }
 
 type Config struct {
@@ -28,6 +30,8 @@ func DefaultConfig() Config {
 			ShowFileTree:    true,
 			FileTreeWidth:   26,
 			SearchTreeWidth: 50,
+			Icons:           "nerd-fonts",
+			ColorFileNames:  true,
 		},
 	}
 }

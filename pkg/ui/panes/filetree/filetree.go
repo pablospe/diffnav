@@ -19,22 +19,25 @@ import (
 )
 
 type Model struct {
-	files        []*gitdiff.File
-	tree         *tree.Tree
-	vp           viewport.Model
-	selectedFile *string
+	files          []*gitdiff.File
+	tree           *tree.Tree
+	vp             viewport.Model
+	selectedFile   *string
+	iconStyle      string
+	colorFileNames bool
+	width          int
 }
 
 // isRootHidden returns true if the tree root is hidden (not displayed).
 func (m Model) isRootHidden() bool {
-	return m.tree != nil && m.tree.Value() == dirIcon+"."
+	return m.tree != nil && m.tree.Value() == getDirIcon(m.iconStyle)+"."
 }
 
 func (m Model) SetFiles(files []*gitdiff.File) Model {
 	m.files = files
-	t := buildFullFileTree(files)
+	t := buildFullFileTree(files, m.iconStyle)
 	collapsed := collapseTree(t)
-	m.tree, _ = truncateTree(collapsed, 0, 0, 0)
+	m.tree, _ = truncateTree(collapsed, 0, 0, 0, m.iconStyle, m.selectedFile, m.colorFileNames, m.width)
 	m.vp.SetContent(m.printWithoutRoot())
 	return m
 }
@@ -45,6 +48,10 @@ func (m Model) SetCursor(cursor int) Model {
 	}
 	name := filenode.GetFileName(m.files[cursor])
 	m.selectedFile = &name
+	// Rebuild tree to update Selected flag on FileNodes
+	t := buildFullFileTree(m.files, m.iconStyle)
+	collapsed := collapseTree(t)
+	m.tree, _ = truncateTree(collapsed, 0, 0, 0, m.iconStyle, m.selectedFile, m.colorFileNames, m.width)
 	applyStyles(m.tree, m.selectedFile)
 	m.scrollSelectedFileIntoView(m.tree)
 	m.vp.SetContent(m.printWithoutRoot())
@@ -59,6 +66,10 @@ func (m Model) SetCursorNoScroll(cursor int) Model {
 	}
 	name := filenode.GetFileName(m.files[cursor])
 	m.selectedFile = &name
+	// Rebuild tree to update Selected flag on FileNodes
+	t := buildFullFileTree(m.files, m.iconStyle)
+	collapsed := collapseTree(t)
+	m.tree, _ = truncateTree(collapsed, 0, 0, 0, m.iconStyle, m.selectedFile, m.colorFileNames, m.width)
 	applyStyles(m.tree, m.selectedFile)
 	m.vp.SetContent(m.printWithoutRoot())
 	return m
@@ -106,11 +117,26 @@ func (m *Model) scrollSelectedFileIntoView(t *tree.Tree) {
 	}
 }
 
-func New() Model {
+func New(iconStyle string, colorFileNames bool) Model {
 	return Model{
-		files: []*gitdiff.File{},
-		vp:    viewport.Model{},
+		files:          []*gitdiff.File{},
+		vp:             viewport.Model{},
+		iconStyle:      iconStyle,
+		colorFileNames: colorFileNames,
 	}
+}
+
+// SetIconStyle changes the icon style and regenerates the tree.
+func (m Model) SetIconStyle(iconStyle string) Model {
+	m.iconStyle = iconStyle
+	if len(m.files) > 0 {
+		t := buildFullFileTree(m.files, m.iconStyle)
+		collapsed := collapseTree(t)
+		m.tree, _ = truncateTree(collapsed, 0, 0, 0, m.iconStyle, m.selectedFile, m.colorFileNames, m.width)
+		applyStyles(m.tree, m.selectedFile)
+		m.vp.SetContent(m.printWithoutRoot())
+	}
+	return m
 }
 
 func (m Model) Init() tea.Cmd {
@@ -152,6 +178,16 @@ func (m Model) View() string {
 func (m *Model) SetSize(width, height int) tea.Cmd {
 	m.vp.Width = width
 	m.vp.Height = height
+	widthChanged := m.width != width
+	m.width = width
+	// Rebuild tree if width changed to update padding
+	if widthChanged && len(m.files) > 0 {
+		t := buildFullFileTree(m.files, m.iconStyle)
+		collapsed := collapseTree(t)
+		m.tree, _ = truncateTree(collapsed, 0, 0, 0, m.iconStyle, m.selectedFile, m.colorFileNames, m.width)
+		applyStyles(m.tree, m.selectedFile)
+		m.vp.SetContent(m.printWithoutRoot())
+	}
 	return nil
 }
 
@@ -246,7 +282,7 @@ func normalizeDepth(node *tree.Tree, depth int) *tree.Tree {
 	return t
 }
 
-func buildFullFileTree(files []*gitdiff.File) *tree.Tree {
+func buildFullFileTree(files []*gitdiff.File, iconStyle string) *tree.Tree {
 	t := tree.Root(".")
 	for _, file := range files {
 		subTree := t
@@ -282,7 +318,7 @@ func buildFullFileTree(files []*gitdiff.File) *tree.Tree {
 		for i, part := range parts {
 			var c *tree.Tree
 			if i == len(parts)-1 {
-				subTree.Child(filenode.FileNode{File: file})
+				subTree.Child(filenode.FileNode{File: file, IconStyle: iconStyle})
 			} else {
 				c = tree.Root(part)
 				subTree.Child(c)
@@ -330,9 +366,19 @@ func collapseTree(t *tree.Tree) *tree.Tree {
 	return newT
 }
 
-const dirIcon = " "
+func getDirIcon(iconStyle string) string {
+	switch iconStyle {
+	case filenode.IconsNerdFonts, filenode.IconsNerdFontsAlt:
+		return " "
+	case filenode.IconsUnicode:
+		return "▶ "
+	default: // ascii
+		return "> "
+	}
+}
 
-func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int) (*tree.Tree, int) {
+func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int, iconStyle string, selectedFile *string, colorFileNames bool, width int) (*tree.Tree, int) {
+	dirIcon := getDirIcon(iconStyle)
 	newT := tree.Root(utils.TruncateString(dirIcon+t.Value(), constants.OpenFileTreeWidth-depth*2))
 	numNodes++
 	children := t.Children()
@@ -341,13 +387,14 @@ func truncateTree(t *tree.Tree, depth int, numNodes int, numChildren int) (*tree
 		numChildren++
 		switch child := child.(type) {
 		case *tree.Tree:
-			sub, subNum := truncateTree(child, depth+1, numNodes, 0)
+			sub, subNum := truncateTree(child, depth+1, numNodes, 0, iconStyle, selectedFile, colorFileNames, width)
 			numChildren += subNum
 			numNodes += subNum + 1
 			newT.Child(sub)
 		case filenode.FileNode:
 			numNodes++
-			newT.Child(filenode.FileNode{File: child.File, Depth: depth + 1, YOffset: numNodes})
+			isSelected := selectedFile != nil && child.Path() == *selectedFile
+			newT.Child(filenode.FileNode{File: child.File, Depth: depth + 1, YOffset: numNodes, IconStyle: iconStyle, Selected: isSelected, ColorFileNames: colorFileNames, PanelWidth: width})
 		default:
 			newT.Child(child)
 		}
@@ -380,16 +427,13 @@ func applyStyleAux(children tree.Children, i int, selectedFile *string) lipgloss
 
 func applyStyleToNode(node tree.Node, selectedFile *string) lipgloss.Style {
 	st := lipgloss.NewStyle()
-	switch n := node.(type) {
+	switch node.(type) {
 	case filenode.FileNode:
-		if selectedFile != nil && n.Path() == *selectedFile {
-			return st.Bold(true).Foreground(lipgloss.Color("5")).Reverse(true)
-		}
+		// Background is applied directly in FileNode.Value()
 		return st
 	case *tree.Tree:
 		return st.Foreground(lipgloss.Color("4"))
 	default:
 		return st
 	}
-	return st
 }

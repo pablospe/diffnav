@@ -72,11 +72,12 @@ type mainModel struct {
 	config             config.Config
 	draggingSidebar    bool
 	customSidebarWidth int
+	iconStyle          string
 }
 
 func New(input string, cfg config.Config) mainModel {
-	m := mainModel{input: input, isShowingFileTree: cfg.UI.ShowFileTree, activePanel: FileTreePanel, config: cfg}
-	m.fileTree = filetree.New()
+	m := mainModel{input: input, isShowingFileTree: cfg.UI.ShowFileTree, activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons}
+	m.fileTree = filetree.New(cfg.UI.Icons, cfg.UI.ColorFileNames)
 	m.diffViewer = diffviewer.New()
 
 	m.help = help.New()
@@ -93,7 +94,7 @@ func New(input string, cfg config.Config) mainModel {
 	m.search = textinput.New()
 	m.search.ShowSuggestions = true
 	m.search.KeyMap.AcceptSuggestion = key.NewBinding(key.WithKeys("tab"))
-	m.search.Prompt = " "
+	m.search.Prompt = " "
 	m.search.PromptStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	m.search.Placeholder = "Filter files 󰬛 "
 	m.search.PlaceholderStyle = lipgloss.NewStyle().MaxWidth(lipgloss.Width(m.search.Placeholder)).Foreground(lipgloss.Color("8"))
@@ -145,6 +146,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.height-m.footerHeight()-m.headerHeight())
 				cmds = append(cmds, dfCmd)
+			case "i":
+				m.cycleIconStyle()
 			case "tab":
 				if m.isShowingFileTree {
 					if m.activePanel == FileTreePanel {
@@ -238,6 +241,20 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m *mainModel) cycleIconStyle() {
+	switch m.iconStyle {
+	case filenode.IconsASCII:
+		m.iconStyle = filenode.IconsUnicode
+	case filenode.IconsUnicode:
+		m.iconStyle = filenode.IconsNerdFonts
+	case filenode.IconsNerdFonts:
+		m.iconStyle = filenode.IconsNerdFontsAlt
+	default:
+		m.iconStyle = filenode.IconsASCII
+	}
+	m.fileTree = m.fileTree.SetIconStyle(m.iconStyle)
 }
 
 func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
@@ -413,7 +430,7 @@ func (m mainModel) footerView() string {
 func (m mainModel) resultsView() string {
 	sb := strings.Builder{}
 	for i, f := range m.filtered {
-		fName := utils.TruncateString(" "+f, m.config.UI.SearchTreeWidth-2)
+		fName := utils.TruncateString(" "+f, m.config.UI.SearchTreeWidth-2)
 		if i == m.resultsCursor {
 			sb.WriteString(lipgloss.NewStyle().Background(lipgloss.Color("#1b1b33")).Bold(true).Render(fName) + "\n")
 		} else {
