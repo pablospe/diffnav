@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -19,6 +20,13 @@ import (
 )
 
 func main() {
+	// Parse CLI flags
+	sideBySideFlag := flag.Bool("side-by-side", false, "Force side-by-side diff view")
+	flag.BoolVar(sideBySideFlag, "s", false, "Force side-by-side diff view (shorthand)")
+	unifiedFlag := flag.Bool("unified", false, "Force unified diff view")
+	flag.BoolVar(unifiedFlag, "u", false, "Force unified diff view (shorthand)")
+	flag.Parse()
+
 	zone.NewGlobal()
 
 	stat, err := os.Stdin.Stat()
@@ -78,6 +86,14 @@ func main() {
 		os.Exit(0)
 	}
 	cfg := config.Load()
+
+	// Override config with CLI flags if specified
+	if *unifiedFlag {
+		cfg.UI.SideBySide = false
+	} else if *sideBySideFlag {
+		cfg.UI.SideBySide = true
+	}
+
 	p := tea.NewProgram(ui.New(input, cfg), tea.WithMouseAllMotion())
 
 	if _, err := p.Run(); err != nil {
