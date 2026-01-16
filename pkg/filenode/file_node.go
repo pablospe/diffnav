@@ -15,10 +15,12 @@ import (
 
 // Icon style constants.
 const (
-	IconsNerdFonts    = "nerd-fonts"
-	IconsNerdFontsAlt = "nerd-fonts-alt"
-	IconsUnicode      = "unicode"
-	IconsASCII        = "ascii"
+	IconsNerdFonts     = "nerd-fonts"
+	IconsNerdFontsAlt  = "nerd-fonts-alt"
+	IconsNerdFontsAlt2 = "nerd-fonts-alt2"
+	IconsNerdFontsAlt3 = "nerd-fonts-alt3"
+	IconsUnicode       = "unicode"
+	IconsASCII         = "ascii"
 )
 
 type FileNode struct {
@@ -37,18 +39,74 @@ func (f FileNode) Path() string {
 
 func (f FileNode) Value() string {
 	name := filepath.Base(f.Path())
-	icon := f.getIcon()
-	statusIcon := f.getStatusIcon()
 
-	// Color the status icon by git status
-	coloredStatus := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(statusIcon)
+	// nerd-fonts-alt3 has a special layout: [status icon] [filename] [file-type icon]
+	if f.IconStyle == IconsNerdFontsAlt3 {
+		return f.renderAlt3Layout(name)
+	}
+
+	// All other styles: [icon] [filename] with optional coloring
+	return f.renderStandardLayout(name)
+}
+
+// renderStandardLayout renders: [icon] [filename]
+// Used by nerd-fonts, nerd-fonts-alt, nerd-fonts-alt2, unicode, ascii.
+func (f FileNode) renderStandardLayout(name string) string {
+	icon := f.getIcon()
+	depthWidth := f.Depth * 2
+	iconWidth := lipgloss.Width(icon) + 1
+	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconWidth
+	truncatedName := utils.TruncateString(name, nameMaxWidth)
+
+	// Determine if this style uses colors
+	useColors := f.IconStyle != IconsNerdFontsAlt
+
+	if f.Selected {
+		bgStyle := lipgloss.NewStyle().
+			Bold(true).
+			Background(lipgloss.Color("#3a3a3a"))
+		if useColors {
+			bgStyle = bgStyle.Foreground(f.StatusColor())
+		}
+		if f.PanelWidth > 0 {
+			availableWidth := f.PanelWidth - iconWidth - (f.Depth * 2)
+			if availableWidth > 0 {
+				bgStyle = bgStyle.Width(availableWidth)
+			}
+		}
+		coloredIcon := icon
+		if useColors {
+			coloredIcon = lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
+		}
+		return coloredIcon + " " + bgStyle.Render(truncatedName)
+	}
+
+	if useColors && f.ColorFileNames {
+		coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
+		styledName := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(truncatedName)
+		return coloredIcon + " " + styledName
+	}
+
+	if useColors {
+		coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
+		return coloredIcon + " " + truncatedName
+	}
+
+	return icon + " " + truncatedName
+}
+
+// renderAlt3Layout renders: [status icon] [filename] [file-type icon on right]
+// No colors, status indicator on left, file-type icon on right.
+func (f FileNode) renderAlt3Layout(name string) string {
+	statusIcon := f.getStatusIcon()
+	fileIcon := icons.GetIcon(name, false)
 
 	depthWidth := f.Depth * 2
-	iconsWidth := lipgloss.Width(icon) + 1 + lipgloss.Width(coloredStatus) + 1 // icon + space + status + space
+	iconsWidth := lipgloss.Width(statusIcon) + 1 + lipgloss.Width(fileIcon) + 1
 	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconsWidth
 	truncatedName := utils.TruncateString(name, nameMaxWidth)
 
-	// Calculate spacer to push status icon to the right
+	// Calculate spacer to push file icon to the right
 	spacerWidth := constants.OpenFileTreeWidth - lipgloss.Width(truncatedName) - iconsWidth - depthWidth
 	if len(truncatedName) < len(name) {
 		spacerWidth = spacerWidth - 1
@@ -59,38 +117,32 @@ func (f FileNode) Value() string {
 	}
 
 	if f.Selected {
-		// Apply background with fixed width to extend to panel edge
 		bgStyle := lipgloss.NewStyle().
 			Bold(true).
-			Foreground(f.StatusColor()).
 			Background(lipgloss.Color("#3a3a3a"))
 		if f.PanelWidth > 0 {
-			iconWidth := lipgloss.Width(icon) + 1
+			iconWidth := lipgloss.Width(statusIcon) + 1
 			availableWidth := f.PanelWidth - iconWidth - (f.Depth * 2)
 			if availableWidth > 0 {
 				bgStyle = bgStyle.Width(availableWidth)
 			}
 		}
-		return icon + " " + bgStyle.Render(truncatedName+spacer+" "+coloredStatus)
+		return statusIcon + " " + bgStyle.Render(truncatedName+spacer+" "+fileIcon)
 	}
 
-	if f.ColorFileNames {
-		styledName := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(truncatedName)
-		return icon + " " + styledName + spacer + " " + coloredStatus
-	}
-
-	return icon + " " + truncatedName + spacer + " " + coloredStatus
+	return statusIcon + " " + truncatedName + spacer + " " + fileIcon
 }
 
-// getIcon returns the file-type icon based on the icon style.
+// getIcon returns the left icon based on the icon style.
 func (f FileNode) getIcon() string {
 	name := filepath.Base(f.Path())
 	switch f.IconStyle {
 	case IconsNerdFonts:
-		// Use file-type specific icons from the icons package
-		return icons.GetIcon(name, false)
+		return "" // Generic file icon (colored by status)
 	case IconsNerdFontsAlt:
-		return ""
+		return "" // Generic file icon (no colors)
+	case IconsNerdFontsAlt2:
+		return icons.GetIcon(name, false) // File-type specific icon (colored by status)
 	case IconsUnicode:
 		return "●"
 	default: // ascii
@@ -98,38 +150,14 @@ func (f FileNode) getIcon() string {
 	}
 }
 
-// getStatusIcon returns the git status indicator icon.
+// getStatusIcon returns the git status indicator icon (used by alt3 layout).
 func (f FileNode) getStatusIcon() string {
-	switch f.IconStyle {
-	case IconsNerdFonts:
-		if f.File.IsNew {
-			return ""
-		} else if f.File.IsDelete {
-			return ""
-		}
+	if f.File.IsNew {
 		return ""
-	case IconsNerdFontsAlt:
-		if f.File.IsNew {
-			return ""
-		} else if f.File.IsDelete {
-			return ""
-		}
+	} else if f.File.IsDelete {
 		return ""
-	case IconsUnicode:
-		if f.File.IsNew {
-			return "+"
-		} else if f.File.IsDelete {
-			return "⛌"
-		}
-		return "●"
-	default: // ascii
-		if f.File.IsNew {
-			return "+"
-		} else if f.File.IsDelete {
-			return "x"
-		}
-		return "*"
 	}
+	return ""
 }
 
 // StatusColor returns the color for this file based on its git status.

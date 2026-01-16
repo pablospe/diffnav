@@ -85,7 +85,7 @@ ui:
   # Customize the search panel width (default: 50)
   searchTreeWidth: 60
 
-  # Icon style: "nerd-fonts" (default), "nerd-fonts-alt", "unicode", or "ascii"
+  # Icon style: "nerd-fonts" (default), "nerd-fonts-alt", "nerd-fonts-alt2", "nerd-fonts-alt3", "unicode", or "ascii"
   icons: nerd-fonts
 
   # Color filenames by git status (default: true)
@@ -102,7 +102,7 @@ ui:
 | `ui.showFileTree`   | bool   | `true`  | Show file tree on startup             |
 | `ui.fileTreeWidth`  | int    | `26`    | Width of the file tree sidebar        |
 | `ui.searchTreeWidth`| int    | `50`    | Width of the search panel             |
-| `ui.icons`          | string | `nerd-fonts` | Icon style: `nerd-fonts`, `nerd-fonts-alt`, `unicode`, or `ascii` |
+| `ui.icons`          | string | `nerd-fonts` | Icon style: `nerd-fonts`, `nerd-fonts-alt`, `nerd-fonts-alt2`, `nerd-fonts-alt3`, `unicode`, or `ascii` |
 | `ui.colorFileNames` | bool   | `true`  | Color filenames by git status |
 | `ui.sideBySide`     | bool   | `true`  | Use side-by-side diff view (false for unified) |
 
