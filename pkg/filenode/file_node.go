@@ -2,10 +2,15 @@ package filenode
 
 import (
 	"path/filepath"
+	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/tree"
+
+	"github.com/dlvhdr/diffnav/pkg/constants"
+	"github.com/dlvhdr/diffnav/pkg/icons"
+	"github.com/dlvhdr/diffnav/pkg/utils"
 )
 
 // Icon style constants.
@@ -31,10 +36,27 @@ func (f FileNode) Path() string {
 }
 
 func (f FileNode) Value() string {
-	icon := f.getIcon()
 	name := filepath.Base(f.Path())
-	// Icon is always colored by status
-	coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
+	icon := f.getIcon()
+	statusIcon := f.getStatusIcon()
+
+	// Color the status icon by git status
+	coloredStatus := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(statusIcon)
+
+	depthWidth := f.Depth * 2
+	iconsWidth := lipgloss.Width(icon) + 1 + lipgloss.Width(coloredStatus) + 1 // icon + space + status + space
+	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconsWidth
+	truncatedName := utils.TruncateString(name, nameMaxWidth)
+
+	// Calculate spacer to push status icon to the right
+	spacerWidth := constants.OpenFileTreeWidth - lipgloss.Width(truncatedName) - iconsWidth - depthWidth
+	if len(truncatedName) < len(name) {
+		spacerWidth = spacerWidth - 1
+	}
+	spacer := ""
+	if spacerWidth > 0 {
+		spacer = strings.Repeat(" ", spacerWidth)
+	}
 
 	if f.Selected {
 		// Apply background with fixed width to extend to panel edge
@@ -43,35 +65,56 @@ func (f FileNode) Value() string {
 			Foreground(f.StatusColor()).
 			Background(lipgloss.Color("#3a3a3a"))
 		if f.PanelWidth > 0 {
-			iconWidth := lipgloss.Width(coloredIcon) + 1
-			// Subtract tree indentation
+			iconWidth := lipgloss.Width(icon) + 1
 			availableWidth := f.PanelWidth - iconWidth - (f.Depth * 2)
 			if availableWidth > 0 {
 				bgStyle = bgStyle.Width(availableWidth)
 			}
 		}
-		return coloredIcon + " " + bgStyle.Render(name)
+		return icon + " " + bgStyle.Render(truncatedName+spacer+" "+coloredStatus)
 	}
 
 	if f.ColorFileNames {
-		styledName := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(name)
-		return coloredIcon + " " + styledName
+		styledName := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(truncatedName)
+		return icon + " " + styledName + spacer + " " + coloredStatus
 	}
 
-	return coloredIcon + " " + name
+	return icon + " " + truncatedName + spacer + " " + coloredStatus
 }
 
+// getIcon returns the file-type icon based on the icon style.
 func (f FileNode) getIcon() string {
+	name := filepath.Base(f.Path())
+	switch f.IconStyle {
+	case IconsNerdFonts:
+		// Use file-type specific icons from the icons package
+		return icons.GetIcon(name, false)
+	case IconsNerdFontsAlt:
+		return ""
+	case IconsUnicode:
+		return "●"
+	default: // ascii
+		return "*"
+	}
+}
+
+// getStatusIcon returns the git status indicator icon.
+func (f FileNode) getStatusIcon() string {
 	switch f.IconStyle {
 	case IconsNerdFonts:
 		if f.File.IsNew {
-			return ""
+			return ""
 		} else if f.File.IsDelete {
-			return ""
+			return ""
 		}
-		return ""
+		return ""
 	case IconsNerdFontsAlt:
-		return ""
+		if f.File.IsNew {
+			return ""
+		} else if f.File.IsDelete {
+			return ""
+		}
+		return ""
 	case IconsUnicode:
 		if f.File.IsNew {
 			return "+"
@@ -79,7 +122,7 @@ func (f FileNode) getIcon() string {
 			return "⛌"
 		}
 		return "●"
-	default: // ascii (fallback for unknown values)
+	default: // ascii
 		if f.File.IsNew {
 			return "+"
 		} else if f.File.IsDelete {
