@@ -2,7 +2,6 @@ package filenode
 
 import (
 	"path/filepath"
-	"strings"
 
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	"github.com/charmbracelet/lipgloss"
@@ -95,42 +94,33 @@ func (f FileNode) renderStandardLayout(name string) string {
 	return icon + " " + truncatedName
 }
 
-// renderAlt3Layout renders: [status icon] [filename] [file-type icon on right]
-// No colors, status indicator on left, file-type icon on right.
+// renderAlt3Layout renders: [status icon colored] [file-type icon] [filename]
+// Status indicator colored, file-type icon and filename plain.
 func (f FileNode) renderAlt3Layout(name string) string {
 	statusIcon := f.getStatusIcon()
 	fileIcon := icons.GetIcon(name, false)
+	coloredStatus := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(statusIcon)
 
 	depthWidth := f.Depth * 2
 	iconsWidth := lipgloss.Width(statusIcon) + 1 + lipgloss.Width(fileIcon) + 1
 	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconsWidth
 	truncatedName := utils.TruncateString(name, nameMaxWidth)
 
-	// Calculate spacer to push file icon to the right
-	spacerWidth := constants.OpenFileTreeWidth - lipgloss.Width(truncatedName) - iconsWidth - depthWidth
-	if len(truncatedName) < len(name) {
-		spacerWidth = spacerWidth - 1
-	}
-	spacer := ""
-	if spacerWidth > 0 {
-		spacer = strings.Repeat(" ", spacerWidth)
-	}
-
 	if f.Selected {
 		bgStyle := lipgloss.NewStyle().
 			Bold(true).
 			Background(lipgloss.Color("#3a3a3a"))
 		if f.PanelWidth > 0 {
-			iconWidth := lipgloss.Width(statusIcon) + 1
+			iconWidth := lipgloss.Width(statusIcon) + 1 + lipgloss.Width(fileIcon) + 1
 			availableWidth := f.PanelWidth - iconWidth - (f.Depth * 2)
 			if availableWidth > 0 {
 				bgStyle = bgStyle.Width(availableWidth)
 			}
 		}
-		return statusIcon + " " + bgStyle.Render(truncatedName+spacer+" "+fileIcon)
+		return coloredStatus + " " + fileIcon + " " + bgStyle.Render(truncatedName)
 	}
 
-	return statusIcon + " " + truncatedName + spacer + " " + fileIcon
+	return coloredStatus + " " + fileIcon + " " + truncatedName
 }
 
 // getIcon returns the left icon based on the icon style.
