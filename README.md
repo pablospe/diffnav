@@ -85,8 +85,8 @@ ui:
   # Customize the search panel width (default: 50)
   searchTreeWidth: 60
 
-  # Icon style: "nerd-fonts" (default), "nerd-fonts-alt", "nerd-fonts-alt2", "nerd-fonts-alt3", "unicode", or "ascii"
-  icons: nerd-fonts
+  # Icon style: "status" (default), "simple", "filetype", "full", "unicode", or "ascii"
+  icons: status
 
   # Color filenames by git status (default: true)
   colorFileNames: false
@@ -102,9 +102,20 @@ ui:
 | `ui.showFileTree`   | bool   | `true`  | Show file tree on startup             |
 | `ui.fileTreeWidth`  | int    | `26`    | Width of the file tree sidebar        |
 | `ui.searchTreeWidth`| int    | `50`    | Width of the search panel             |
-| `ui.icons`          | string | `nerd-fonts` | Icon style: `nerd-fonts`, `nerd-fonts-alt`, `nerd-fonts-alt2`, `nerd-fonts-alt3`, `unicode`, or `ascii` |
+| `ui.icons`          | string | `status` | Icon style (see below for details) |
 | `ui.colorFileNames` | bool   | `true`  | Color filenames by git status |
 | `ui.sideBySide`     | bool   | `true`  | Use side-by-side diff view (false for unified) |
+
+### Icon Styles
+
+| Style      | Description                                                   |
+| :--------- | :------------------------------------------------------------ |
+| `status`   | Boxed git status icons (⊕/⊖/⊙) colored by change type        |
+| `simple`   | Generic file icon () colored by change type                  |
+| `filetype` | File-type specific icons (language icons) colored by change type |
+| `full`     | Both status icon and file-type icon, all colored             |
+| `unicode`  | Unicode symbols (+/⛌/●)                                       |
+| `ascii`    | Plain ASCII characters (+/x/*)                               |
 
 ### Delta
 

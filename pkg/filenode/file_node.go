@@ -14,12 +14,12 @@ import (
 
 // Icon style constants.
 const (
-	IconsNerdFonts     = "nerd-fonts"
-	IconsNerdFontsAlt  = "nerd-fonts-alt"
-	IconsNerdFontsAlt2 = "nerd-fonts-alt2"
-	IconsNerdFontsAlt3 = "nerd-fonts-alt3"
-	IconsUnicode       = "unicode"
-	IconsASCII         = "ascii"
+	IconsStatus   = "status"
+	IconsSimple   = "simple"
+	IconsFiletype = "filetype"
+	IconsFull     = "full"
+	IconsUnicode  = "unicode"
+	IconsASCII    = "ascii"
 )
 
 type FileNode struct {
@@ -39,8 +39,8 @@ func (f FileNode) Path() string {
 func (f FileNode) Value() string {
 	name := filepath.Base(f.Path())
 
-	// nerd-fonts-alt3 has a special layout: [status icon] [filename] [file-type icon]
-	if f.IconStyle == IconsNerdFontsAlt3 {
+	// full has a special layout: [status icon] [filename] [file-type icon]
+	if f.IconStyle == IconsFull {
 		return f.renderAlt3Layout(name)
 	}
 
@@ -49,7 +49,7 @@ func (f FileNode) Value() string {
 }
 
 // renderStandardLayout renders: [icon colored] [filename]
-// Used by nerd-fonts, nerd-fonts-alt, nerd-fonts-alt2, unicode, ascii.
+// Used by status, simple, filetype, unicode, ascii.
 func (f FileNode) renderStandardLayout(name string) string {
 	icon := f.getIcon()
 	depthWidth := f.Depth * 2
@@ -121,16 +121,16 @@ func (f FileNode) renderAlt3Layout(name string) string {
 func (f FileNode) getIcon() string {
 	name := filepath.Base(f.Path())
 	switch f.IconStyle {
-	case IconsNerdFonts:
+	case IconsStatus:
 		if f.File.IsNew {
 			return ""
 		} else if f.File.IsDelete {
 			return ""
 		}
 		return ""
-	case IconsNerdFontsAlt:
+	case IconsSimple:
 		return ""
-	case IconsNerdFontsAlt2:
+	case IconsFiletype:
 		return icons.GetIcon(name, false) // File-type specific icon (colored by status)
 	case IconsUnicode:
 		if f.File.IsNew {
@@ -149,8 +149,8 @@ func (f FileNode) getIcon() string {
 	}
 }
 
-// getStatusIcon returns the git status indicator icon (used by alt3 layout).
-// Uses the same boxed icons as nerd-fonts style.
+// getStatusIcon returns the git status indicator icon (used by full layout).
+// Uses the same boxed icons as status style.
 func (f FileNode) getStatusIcon() string {
 	if f.File.IsNew {
 		return "\uf457" //
