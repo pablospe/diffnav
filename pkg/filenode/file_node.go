@@ -48,7 +48,7 @@ func (f FileNode) Value() string {
 	return f.renderStandardLayout(name)
 }
 
-// renderStandardLayout renders: [icon] [filename]
+// renderStandardLayout renders: [icon colored] [filename]
 // Used by nerd-fonts, nerd-fonts-alt, nerd-fonts-alt2, unicode, ascii.
 func (f FileNode) renderStandardLayout(name string) string {
 	icon := f.getIcon()
@@ -56,9 +56,7 @@ func (f FileNode) renderStandardLayout(name string) string {
 	iconWidth := lipgloss.Width(icon) + 1
 	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconWidth
 	truncatedName := utils.TruncateString(name, nameMaxWidth)
-
-	// All styles color the icon by git status
-	colorIcon := true
+	coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
 
 	if f.Selected {
 		bgStyle := lipgloss.NewStyle().
@@ -71,28 +69,15 @@ func (f FileNode) renderStandardLayout(name string) string {
 				bgStyle = bgStyle.Width(availableWidth)
 			}
 		}
-		displayIcon := icon
-		if colorIcon {
-			displayIcon = lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
-		}
-		return displayIcon + " " + bgStyle.Render(truncatedName)
+		return coloredIcon + " " + bgStyle.Render(truncatedName)
 	}
 
 	if f.ColorFileNames {
 		styledName := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(truncatedName)
-		if colorIcon {
-			coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
-			return coloredIcon + " " + styledName
-		}
-		return icon + " " + styledName
+		return coloredIcon + " " + styledName
 	}
 
-	if colorIcon {
-		coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
-		return coloredIcon + " " + truncatedName
-	}
-
-	return icon + " " + truncatedName
+	return coloredIcon + " " + truncatedName
 }
 
 // renderAlt3Layout renders: [status icon colored] [file-type icon colored] [filename colored]
