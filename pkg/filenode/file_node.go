@@ -80,41 +80,33 @@ func (f FileNode) renderStandardLayout(name string) string {
 	return coloredIcon + " " + truncatedName
 }
 
-// renderFullLayout renders: [status icon colored] [file-type icon colored] [filename colored]
-// All elements colored by git status.
+// renderFullLayout renders: [status icon colored] [file-type icon colored] [filename]
+// All icons colored by git status.
 func (f FileNode) renderFullLayout(name string) string {
 	statusIcon := f.getStatusIcon()
 	fileIcon := icons.GetIcon(name, false)
-	statusColor := f.StatusColor()
-	coloredStatus := lipgloss.NewStyle().Foreground(statusColor).Render(statusIcon)
-	coloredFileIcon := lipgloss.NewStyle().Foreground(statusColor).Render(fileIcon)
+	style := lipgloss.NewStyle().Foreground(f.StatusColor())
 
-	depthWidth := f.Depth * 2
+	iconsPrefix := style.Render(statusIcon) + " " + style.Render(fileIcon) + " "
 	iconsWidth := lipgloss.Width(statusIcon) + 1 + lipgloss.Width(fileIcon) + 1
-	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconsWidth
+
+	nameMaxWidth := constants.OpenFileTreeWidth - (f.Depth * 2) - iconsWidth
 	truncatedName := utils.TruncateString(name, nameMaxWidth)
 
 	if f.Selected {
-		bgStyle := lipgloss.NewStyle().
-			Bold(true).
-			Foreground(statusColor).
-			Background(lipgloss.Color("#3a3a3a"))
+		bgStyle := style.Bold(true).Background(lipgloss.Color("#3a3a3a"))
 		if f.PanelWidth > 0 {
-			iconWidth := lipgloss.Width(statusIcon) + 1 + lipgloss.Width(fileIcon) + 1
-			availableWidth := f.PanelWidth - iconWidth - (f.Depth * 2)
-			if availableWidth > 0 {
-				bgStyle = bgStyle.Width(availableWidth)
+			if w := f.PanelWidth - iconsWidth - (f.Depth * 2); w > 0 {
+				bgStyle = bgStyle.Width(w)
 			}
 		}
-		return coloredStatus + " " + coloredFileIcon + " " + bgStyle.Render(truncatedName)
+		return iconsPrefix + bgStyle.Render(truncatedName)
 	}
 
 	if f.ColorFileNames {
-		coloredName := lipgloss.NewStyle().Foreground(statusColor).Render(truncatedName)
-		return coloredStatus + " " + coloredFileIcon + " " + coloredName
+		return iconsPrefix + style.Render(truncatedName)
 	}
-
-	return coloredStatus + " " + coloredFileIcon + " " + truncatedName
+	return iconsPrefix + truncatedName
 }
 
 // getIcon returns the left icon based on the icon style.
