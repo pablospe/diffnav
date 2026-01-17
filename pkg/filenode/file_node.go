@@ -57,9 +57,8 @@ func (f FileNode) renderStandardLayout(name string) string {
 	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconWidth
 	truncatedName := utils.TruncateString(name, nameMaxWidth)
 
-	// nerd-fonts-alt: icon not colored, but filename can be colored
-	// All other styles: both icon and filename colored
-	colorIcon := f.IconStyle != IconsNerdFontsAlt
+	// All styles color the icon by git status
+	colorIcon := true
 
 	if f.Selected {
 		bgStyle := lipgloss.NewStyle().
