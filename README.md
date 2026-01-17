@@ -85,8 +85,8 @@ ui:
   # Customize the search panel width (default: 50)
   searchTreeWidth: 60
 
-  # Icon style: "nerd-fonts" (default), "nerd-fonts-alt", "unicode", or "ascii"
-  icons: nerd-fonts
+  # Icon style: "status" (default), "simple", "filetype", "full", "unicode", or "ascii"
+  icons: nerd-fonts-status
 
   # Color filenames by git status (default: true)
   colorFileNames: false
@@ -95,16 +95,27 @@ ui:
   sideBySide: true
 ```
 
-| Option              | Type   | Default | Description                           |
-| :------------------ | :----- | :------ | :------------------------------------ |
-| `ui.hideHeader`     | bool   | `false` | Hide the "DIFFNAV" header             |
-| `ui.hideFooter`     | bool   | `false` | Hide the footer with keybindings help |
-| `ui.showFileTree`   | bool   | `true`  | Show file tree on startup             |
-| `ui.fileTreeWidth`  | int    | `26`    | Width of the file tree sidebar        |
-| `ui.searchTreeWidth`| int    | `50`    | Width of the search panel             |
-| `ui.icons`          | string | `nerd-fonts` | Icon style: `nerd-fonts`, `nerd-fonts-alt`, `unicode`, or `ascii` |
-| `ui.colorFileNames` | bool   | `true`  | Color filenames by git status |
-| `ui.sideBySide`     | bool   | `true`  | Use side-by-side diff view (false for unified) |
+| Option               | Type   | Default             | Description                                    |
+| :------------------- | :----- | :------------------ | :--------------------------------------------- |
+| `ui.hideHeader`      | bool   | `false`             | Hide the "DIFFNAV" header                      |
+| `ui.hideFooter`      | bool   | `false`             | Hide the footer with keybindings help          |
+| `ui.showFileTree`    | bool   | `true`              | Show file tree on startup                      |
+| `ui.fileTreeWidth`   | int    | `26`                | Width of the file tree sidebar                 |
+| `ui.searchTreeWidth` | int    | `50`                | Width of the search panel                      |
+| `ui.icons`           | string | `nerd-fonts-status` | Icon style (see below for details)             |
+| `ui.colorFileNames`  | bool   | `true`              | Color filenames by git status                  |
+| `ui.sideBySide`      | bool   | `true`              | Use side-by-side diff view (false for unified) |
+
+### Icon Styles
+
+| Style                 | Description                                                      |
+| :-------------------- | :--------------------------------------------------------------- |
+| `nerd-fonts-status`   | Boxed git status icons colored by change type                    |
+| `nerd-fonts-simple`   | Generic file icon colored by change type                         |
+| `nerd-fonts-filetype` | File-type specific icons (language icons) colored by change type |
+| `nerd-fonts-full`     | Both status icon and file-type icon, all colored                 |
+| `unicode`             | Unicode symbols (+/⛌/●)                                          |
+| `ascii`               | Plain ASCII characters (+/x/\*)                                  |
 
 ### Delta
 
