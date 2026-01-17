@@ -57,36 +57,38 @@ func (f FileNode) renderStandardLayout(name string) string {
 	nameMaxWidth := constants.OpenFileTreeWidth - depthWidth - iconWidth
 	truncatedName := utils.TruncateString(name, nameMaxWidth)
 
-	// Determine if this style uses colors
-	useColors := f.IconStyle != IconsNerdFontsAlt
+	// nerd-fonts-alt: icon not colored, but filename can be colored
+	// All other styles: both icon and filename colored
+	colorIcon := f.IconStyle != IconsNerdFontsAlt
 
 	if f.Selected {
 		bgStyle := lipgloss.NewStyle().
 			Bold(true).
+			Foreground(f.StatusColor()).
 			Background(lipgloss.Color("#3a3a3a"))
-		if useColors {
-			bgStyle = bgStyle.Foreground(f.StatusColor())
-		}
 		if f.PanelWidth > 0 {
 			availableWidth := f.PanelWidth - iconWidth - (f.Depth * 2)
 			if availableWidth > 0 {
 				bgStyle = bgStyle.Width(availableWidth)
 			}
 		}
-		coloredIcon := icon
-		if useColors {
-			coloredIcon = lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
+		displayIcon := icon
+		if colorIcon {
+			displayIcon = lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
 		}
-		return coloredIcon + " " + bgStyle.Render(truncatedName)
+		return displayIcon + " " + bgStyle.Render(truncatedName)
 	}
 
-	if useColors && f.ColorFileNames {
-		coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
+	if f.ColorFileNames {
 		styledName := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(truncatedName)
-		return coloredIcon + " " + styledName
+		if colorIcon {
+			coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
+			return coloredIcon + " " + styledName
+		}
+		return icon + " " + styledName
 	}
 
-	if useColors {
+	if colorIcon {
 		coloredIcon := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(icon)
 		return coloredIcon + " " + truncatedName
 	}
@@ -129,13 +131,13 @@ func (f FileNode) getIcon() string {
 	switch f.IconStyle {
 	case IconsNerdFonts:
 		if f.File.IsNew {
-			return ""
+			return ""
 		} else if f.File.IsDelete {
-			return ""
+			return ""
 		}
-		return ""
+		return ""
 	case IconsNerdFontsAlt:
-		return ""
+		return ""
 	case IconsNerdFontsAlt2:
 		return icons.GetIcon(name, false) // File-type specific icon (colored by status)
 	case IconsUnicode:
@@ -145,7 +147,7 @@ func (f FileNode) getIcon() string {
 			return "⛌"
 		}
 		return "●"
-	default: // ascii
+	default: // ascii (fallback for unknown values)
 		if f.File.IsNew {
 			return "+"
 		} else if f.File.IsDelete {
