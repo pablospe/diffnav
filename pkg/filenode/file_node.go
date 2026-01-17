@@ -128,14 +128,29 @@ func (f FileNode) getIcon() string {
 	name := filepath.Base(f.Path())
 	switch f.IconStyle {
 	case IconsNerdFonts:
-		return "" // Generic file icon (colored by status)
+		if f.File.IsNew {
+			return ""
+		} else if f.File.IsDelete {
+			return ""
+		}
+		return ""
 	case IconsNerdFontsAlt:
-		return "" // Generic file icon (no colors)
+		return ""
 	case IconsNerdFontsAlt2:
 		return icons.GetIcon(name, false) // File-type specific icon (colored by status)
 	case IconsUnicode:
+		if f.File.IsNew {
+			return "+"
+		} else if f.File.IsDelete {
+			return "⛌"
+		}
 		return "●"
 	default: // ascii
+		if f.File.IsNew {
+			return "+"
+		} else if f.File.IsDelete {
+			return "x"
+		}
 		return "*"
 	}
 }
