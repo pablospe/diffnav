@@ -96,12 +96,14 @@ func (f FileNode) renderStandardLayout(name string) string {
 	return icon + " " + truncatedName
 }
 
-// renderAlt3Layout renders: [status icon colored] [file-type icon] [filename]
-// Status indicator colored, file-type icon and filename plain.
+// renderAlt3Layout renders: [status icon colored] [file-type icon colored] [filename colored]
+// All elements colored by git status.
 func (f FileNode) renderAlt3Layout(name string) string {
 	statusIcon := f.getStatusIcon()
 	fileIcon := icons.GetIcon(name, false)
-	coloredStatus := lipgloss.NewStyle().Foreground(f.StatusColor()).Render(statusIcon)
+	statusColor := f.StatusColor()
+	coloredStatus := lipgloss.NewStyle().Foreground(statusColor).Render(statusIcon)
+	coloredFileIcon := lipgloss.NewStyle().Foreground(statusColor).Render(fileIcon)
 
 	depthWidth := f.Depth * 2
 	iconsWidth := lipgloss.Width(statusIcon) + 1 + lipgloss.Width(fileIcon) + 1
@@ -111,6 +113,7 @@ func (f FileNode) renderAlt3Layout(name string) string {
 	if f.Selected {
 		bgStyle := lipgloss.NewStyle().
 			Bold(true).
+			Foreground(statusColor).
 			Background(lipgloss.Color("#3a3a3a"))
 		if f.PanelWidth > 0 {
 			iconWidth := lipgloss.Width(statusIcon) + 1 + lipgloss.Width(fileIcon) + 1
@@ -119,10 +122,15 @@ func (f FileNode) renderAlt3Layout(name string) string {
 				bgStyle = bgStyle.Width(availableWidth)
 			}
 		}
-		return coloredStatus + " " + fileIcon + " " + bgStyle.Render(truncatedName)
+		return coloredStatus + " " + coloredFileIcon + " " + bgStyle.Render(truncatedName)
 	}
 
-	return coloredStatus + " " + fileIcon + " " + truncatedName
+	if f.ColorFileNames {
+		coloredName := lipgloss.NewStyle().Foreground(statusColor).Render(truncatedName)
+		return coloredStatus + " " + coloredFileIcon + " " + coloredName
+	}
+
+	return coloredStatus + " " + coloredFileIcon + " " + truncatedName
 }
 
 // getIcon returns the left icon based on the icon style.
