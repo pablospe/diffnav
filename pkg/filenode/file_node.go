@@ -150,13 +150,14 @@ func (f FileNode) getIcon() string {
 }
 
 // getStatusIcon returns the git status indicator icon (used by alt3 layout).
+// Uses the same boxed icons as nerd-fonts style.
 func (f FileNode) getStatusIcon() string {
 	if f.File.IsNew {
-		return ""
+		return "\uf457" //
 	} else if f.File.IsDelete {
-		return ""
+		return "\ueadf" //
 	}
-	return ""
+	return "\uf459" //
 }
 
 // StatusColor returns the color for this file based on its git status.
