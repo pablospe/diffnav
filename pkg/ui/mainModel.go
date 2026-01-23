@@ -253,9 +253,13 @@ func (m *mainModel) cycleIconStyle() {
 	case filenode.IconsASCII:
 		m.iconStyle = filenode.IconsUnicode
 	case filenode.IconsUnicode:
-		m.iconStyle = filenode.IconsNerdFonts
-	case filenode.IconsNerdFonts:
-		m.iconStyle = filenode.IconsNerdFontsAlt
+		m.iconStyle = filenode.IconsNerdStatus
+	case filenode.IconsNerdStatus:
+		m.iconStyle = filenode.IconsNerdSimple
+	case filenode.IconsNerdSimple:
+		m.iconStyle = filenode.IconsNerdFiletype
+	case filenode.IconsNerdFiletype:
+		m.iconStyle = filenode.IconsNerdFull
 	default:
 		m.iconStyle = filenode.IconsASCII
 	}
