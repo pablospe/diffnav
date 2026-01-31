@@ -211,7 +211,8 @@ func (m *Model) GoToTop() {
 // SetSideBySide updates the diff view mode and re-renders.
 func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 	m.sideBySide = sideBySide
-	// Clear cached diff so it re-renders with the new mode
+	// Clear all cached diffs since the toggle is global
+	m.cache = make(nodeCache)
 	if m.file != nil {
 		m.file.diff = ""
 	} else if m.dir != nil {
