@@ -211,7 +211,7 @@ func (m *Model) GoToTop() {
 // SetSideBySide updates the diff view mode and re-renders.
 func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 	m.sideBySide = sideBySide
-	return diffFile(m.file, m.Width, m.sideBySide)
+	return m.diff()
 }
 
 // ScrollUp scrolls the viewport up by the given number of lines.
