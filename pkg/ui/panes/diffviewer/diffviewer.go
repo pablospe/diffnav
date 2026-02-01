@@ -99,7 +99,8 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 	m.Width = width
 	m.Height = height
 	m.vp.SetWidth(m.Width)
-	m.vp.SetHeight(m.Height - dirHeaderHeight)
+	m.vp.SetHeight(m.vpHeight())
+	m.cache = make(nodeCache)
 	return m.diff()
 }
 
