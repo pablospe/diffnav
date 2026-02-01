@@ -30,6 +30,13 @@ type cachedNode struct {
 
 type nodeCache map[string]*cachedNode
 
+func cacheKey(path string, sideBySide bool) string {
+	if sideBySide {
+		return path + ":sbs"
+	}
+	return path
+}
+
 type Model struct {
 	common.Common
 	vp         viewport.Model
@@ -75,8 +82,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		}
 		diff := strings.Join(lines, "\n")
-		if _, ok := m.cache[msg.path]; ok {
-			m.cache[msg.path].diff = diff
+		if _, ok := m.cache[msg.cacheKey]; ok {
+			m.cache[msg.cacheKey].diff = diff
 		}
 		m.vp.SetContent(diff)
 	}
@@ -98,15 +105,37 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 
 func (m *Model) diff() tea.Cmd {
 	if m.file != nil {
-		if m.file.diff != "" {
+		key := cacheKey(m.file.path, m.sideBySide)
+		if cached, ok := m.cache[key]; ok && cached.diff != "" {
+			m.file = cached
+			m.vp.SetContent(cached.diff)
 			return nil
 		}
-		return diffFile(m.file, m.Width, m.sideBySide)
+		node := &cachedNode{
+			path:      m.file.path,
+			files:     m.file.files,
+			additions: m.file.additions,
+			deletions: m.file.deletions,
+		}
+		m.file = node
+		m.cache[key] = node
+		return diffFile(node, m.Width, m.sideBySide)
 	} else if m.dir != nil {
-		if m.dir.diff != "" {
+		key := cacheKey(m.dir.path, m.sideBySide)
+		if cached, ok := m.cache[key]; ok && cached.diff != "" {
+			m.dir = cached
+			m.vp.SetContent(cached.diff)
 			return nil
 		}
-		return diffDir(m.dir, m.Width, m.sideBySide)
+		node := &cachedNode{
+			path:      m.dir.path,
+			files:     m.dir.files,
+			additions: m.dir.additions,
+			deletions: m.dir.deletions,
+		}
+		m.dir = node
+		m.cache[key] = node
+		return diffDir(node, m.Width, m.sideBySide)
 	}
 
 	return nil
@@ -159,7 +188,8 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	m.dir = nil
 
 	fname := filenode.GetFileName(file)
-	if cached, ok := m.cache[fname]; ok {
+	key := cacheKey(fname, m.sideBySide)
+	if cached, ok := m.cache[key]; ok {
 		m.file = cached
 		m.vp.SetContent(cached.diff)
 		return m, nil
@@ -174,7 +204,7 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 		additions: additions,
 		deletions: deletions,
 	}
-	m.cache[fname] = m.file
+	m.cache[key] = m.file
 
 	return m, diffFile(m.file, m.Width, m.sideBySide)
 }
@@ -182,7 +212,8 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cmd) {
 	m.file = nil
 
-	if cached, ok := m.cache[dirPath]; ok {
+	key := cacheKey(dirPath, m.sideBySide)
+	if cached, ok := m.cache[key]; ok {
 		m.dir = cached
 		m.vp.SetContent(cached.diff)
 		return m, nil
@@ -200,7 +231,7 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 		additions: added,
 		deletions: deleted,
 	}
-	m.cache[dirPath] = m.dir
+	m.cache[key] = m.dir
 	return m, diffDir(m.dir, m.Width, m.sideBySide)
 }
 
@@ -231,15 +262,16 @@ func (m *Model) ScrollDown(lines int) {
 	m.vp.ScrollDown(lines)
 }
 
-func diffFile(node *cachedNode, width int, sideBySidePreference bool) tea.Cmd {
+func diffFile(node *cachedNode, width int, sideBySide bool) tea.Cmd {
 	if width == 0 || node == nil || len(node.files) != 1 {
 		return nil
 	}
 
 	file := node.files[0]
+	key := cacheKey(node.path, sideBySide)
 	return func() tea.Msg {
 		// Only use side-by-side if preference is true AND file is not new/deleted
-		useSideBySide := sideBySidePreference && !file.IsNew && !file.IsDelete
+		useSideBySide := sideBySide && !file.IsNew && !file.IsDelete
 		args := []string{
 			"--paging=never",
 			fmt.Sprintf("-w=%d", width),
@@ -255,17 +287,16 @@ func diffFile(node *cachedNode, width int, sideBySidePreference bool) tea.Cmd {
 		if err != nil {
 			return common.ErrMsg{Err: err}
 		}
-
-		return diffContentMsg{path: filenode.GetFileName(file), text: string(out)}
+		return diffContentMsg{cacheKey: key, text: string(out)}
 	}
 }
 
-func diffDir(dir *cachedNode, width int, sideBySidePreference bool) tea.Cmd {
+func diffDir(dir *cachedNode, width int, sideBySide bool) tea.Cmd {
 	if width == 0 || dir == nil {
 		return nil
 	}
+	key := cacheKey(dir.path, sideBySide)
 	return func() tea.Msg {
-		// Only use side-by-side if preference is true AND file is not new/deleted
 		s := common.BgStyles[common.Selected]
 		c := common.LipglossColorToHex(common.Colors[common.Selected])
 		useSideBySide := sideBySidePreference
@@ -297,11 +328,11 @@ func diffDir(dir *cachedNode, width int, sideBySidePreference bool) tea.Cmd {
 			return common.ErrMsg{Err: err}
 		}
 
-		return diffContentMsg{path: dir.path, text: string(out)}
+		return diffContentMsg{cacheKey: key, text: string(out)}
 	}
 }
 
 type diffContentMsg struct {
-	path string
-	text string
+	cacheKey string
+	text     string
 }
