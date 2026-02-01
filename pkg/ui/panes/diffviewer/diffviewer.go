@@ -99,7 +99,7 @@ func (m *Model) SetSize(width, height int) tea.Cmd {
 	m.Width = width
 	m.Height = height
 	m.vp.SetWidth(m.Width)
-	m.vp.SetHeight(m.vpHeight())
+	m.vp.SetHeight(m.Height - dirHeaderHeight)
 	m.cache = make(nodeCache)
 	return m.diff()
 }
@@ -243,13 +243,6 @@ func (m *Model) GoToTop() {
 // SetSideBySide updates the diff view mode and re-renders.
 func (m *Model) SetSideBySide(sideBySide bool) tea.Cmd {
 	m.sideBySide = sideBySide
-	// Clear all cached diffs since the toggle is global
-	m.cache = make(nodeCache)
-	if m.file != nil {
-		m.file.diff = ""
-	} else if m.dir != nil {
-		m.dir.diff = ""
-	}
 	return m.diff()
 }
 
@@ -300,7 +293,7 @@ func diffDir(dir *cachedNode, width int, sideBySide bool) tea.Cmd {
 	return func() tea.Msg {
 		s := common.BgStyles[common.Selected]
 		c := common.LipglossColorToHex(common.Colors[common.Selected])
-		useSideBySide := sideBySidePreference
+		useSideBySide := sideBySide
 		args := []string{
 			"--paging=never",
 			fmt.Sprintf("--file-modified-label=%s",
