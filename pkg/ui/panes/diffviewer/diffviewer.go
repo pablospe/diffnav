@@ -69,9 +69,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "down", "j":
+		case "down", "j", "n":
 			break
-		case "up", "k":
+		case "up", "k", "N", "p":
 			break
 		default:
 			vp, vpCmd := m.vp.Update(msg)
