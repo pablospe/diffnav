@@ -49,8 +49,8 @@ var keys = &KeyMap{
 		key.WithHelp("n", "next file"),
 	),
 	PrevFile: key.NewBinding(
-		key.WithKeys("N", "p"),
-		key.WithHelp("N/p", "prev file"),
+		key.WithKeys("p", "N"),
+		key.WithHelp("p/N", "prev file"),
 	),
 	CtrlD: key.NewBinding(
 		key.WithKeys("ctrl+d"),
