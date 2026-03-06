@@ -163,6 +163,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			m.fileTree.SetSize(treeWidth, h-searchHeight)
+			m.search.SetWidth(m.searchWidth())
 			dfCmd := m.diffViewer.SetSize(m.width-sidebarWidth, h)
 			cmds = append(cmds, dfCmd)
 		case key.Matches(msg, keys.ToggleIconStyle):
@@ -216,7 +217,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		tWidth, tHeight := m.sidebarWidth(), m.mainContentHeight()-searchHeight
 
 		m.fileTree.SetSize(tWidth, tHeight)
-		m.search.SetWidth(tWidth)
+		m.search.SetWidth(m.searchWidth())
 
 	case fileTreeMsg:
 		m.files = msg.files
@@ -300,22 +301,27 @@ func (m mainModel) searchUpdate(msg tea.Msg) (mainModel, []tea.Cmd) {
 				dfCmd := m.diffViewer.SetSize(m.width-m.sidebarWidth(), m.mainContentHeight())
 				cmds = append(cmds, dfCmd)
 
-				selected := m.filtered[m.resultsCursor]
-				for _, f := range m.files {
-					if filenode.GetFileName(f) == selected {
-						m.diffViewer, cmd = m.diffViewer.SetFilePatch(f)
-						m.fileTree.SetCursorByPath(filenode.GetFileName(f))
-						cmds = append(cmds, cmd)
-						break
+				if selected, ok := m.selectedSearchResult(); ok {
+					for _, f := range m.files {
+						if filenode.GetFileName(f) == selected {
+							m.diffViewer, cmd = m.diffViewer.SetFilePatch(f)
+							m.fileTree.SetCursorByPath(filenode.GetFileName(f))
+							cmds = append(cmds, cmd)
+							break
+						}
 					}
 				}
 
 			case "ctrl+n", "down":
-				m.resultsCursor = min(len(m.filtered)-1, m.resultsCursor+1)
-				m.resultsVp.ScrollDown(1)
+				if len(m.filtered) > 0 {
+					m.resultsCursor = min(len(m.filtered)-1, m.resultsCursor+1)
+					m.resultsVp.ScrollDown(1)
+				}
 			case "ctrl+p", "up":
-				m.resultsCursor = max(0, m.resultsCursor-1)
-				m.resultsVp.ScrollUp(1)
+				if len(m.filtered) > 0 {
+					m.resultsCursor = max(0, m.resultsCursor-1)
+					m.resultsVp.ScrollUp(1)
+				}
 			default:
 				m.resultsCursor = 0
 			}
@@ -348,7 +354,7 @@ func (m mainModel) View() tea.View {
 	// Build T-shaped separator line.
 	separator := ""
 	if m.width > 0 {
-		if m.isShowingFileTree {
+		if m.isSidebarVisible() {
 			sidebarW := m.sidebarWidth()
 			rightW := max(m.width-sidebarW, 0)
 			leftLine := lipgloss.NewStyle().
@@ -365,7 +371,7 @@ func (m mainModel) View() tea.View {
 	}
 
 	sidebar := ""
-	if m.isShowingFileTree {
+	if m.isSidebarVisible() {
 		searchBox := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("8")).
@@ -521,7 +527,7 @@ func (m mainModel) footerHeight() int {
 }
 
 func (m *mainModel) searchWidth() int {
-	return m.sidebarWidth() - 5
+	return max(0, m.sidebarWidth()-5)
 }
 
 func (m *mainModel) stopSearch() {
@@ -559,12 +565,12 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		if msg.Button == tea.MouseLeft {
 			// Keep coordinate check for resize border (hybrid approach).
 			sidebarWidth := m.sidebarWidth()
-			if m.isShowingFileTree && abs(msg.X-sidebarWidth) <= sidebarGrabThreshold {
+			if !m.searching && m.isShowingFileTree && abs(msg.X-sidebarWidth) <= sidebarGrabThreshold {
 				m.draggingSidebar = true
 				return m, nil
 			}
 			// Allow grabbing the line when sidebar is hidden.
-			if !m.isShowingFileTree && msg.X <= sidebarGrabThreshold {
+			if !m.isSidebarVisible() && msg.X <= sidebarGrabThreshold {
 				m.draggingSidebar = true
 				m.isShowingFileTree = true
 				return m, nil
@@ -697,6 +703,11 @@ func (m mainModel) handleScroll(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m mainModel) handleSidebarDrag(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if m.searching {
+		m.draggingSidebar = false
+		return m, nil
+	}
+
 	// Hide sidebar if dragged below threshold.
 	if msg.Mouse().X < sidebarHideWidth {
 		m.isShowingFileTree = false
@@ -777,4 +788,26 @@ func (m *mainModel) setSearchResults() {
 		}
 	}
 	m.filtered = filtered
+	switch {
+	case len(m.filtered) == 0:
+		m.resultsCursor = 0
+	case m.resultsCursor < 0:
+		m.resultsCursor = 0
+	case m.resultsCursor >= len(m.filtered):
+		m.resultsCursor = len(m.filtered) - 1
+	}
+}
+
+func (m mainModel) selectedSearchResult() (string, bool) {
+	if len(m.filtered) == 0 {
+		return "", false
+	}
+	if m.resultsCursor < 0 || m.resultsCursor >= len(m.filtered) {
+		return "", false
+	}
+	return m.filtered[m.resultsCursor], true
+}
+
+func (m mainModel) isSidebarVisible() bool {
+	return m.isShowingFileTree || m.searching
 }
