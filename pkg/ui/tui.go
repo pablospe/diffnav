@@ -479,6 +479,10 @@ func (m mainModel) View() tea.View {
 
 	if m.messageOpen {
 		vpView := m.messageVp.View()
+		// Add scrollbar if content overflows.
+		if m.messageVp.TotalLineCount() > m.messageVp.Height() {
+			vpView = lipgloss.JoinHorizontal(lipgloss.Top, vpView, " ", m.renderScrollbar())
+		}
 		s := lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder(), true).
 			Padding(1, 3).
@@ -649,6 +653,37 @@ func (m *mainModel) updateMessageVp() {
 	m.messageVp.SetHeight(maxHeight)
 	m.messageVp.SetContent(content)
 	m.messageVp.GotoTop()
+}
+
+func (m mainModel) renderScrollbar() string {
+	trackHeight := m.messageVp.Height()
+	totalLines := m.messageVp.TotalLineCount()
+	viewHeight := m.messageVp.Height()
+
+	// Thumb size proportional to visible portion.
+	thumbSize := max(1, trackHeight*viewHeight/totalLines)
+	// Thumb position based on scroll offset.
+	scrollableLines := totalLines - viewHeight
+	thumbPos := 0
+	if scrollableLines > 0 {
+		thumbPos = m.messageVp.YOffset() * (trackHeight - thumbSize) / scrollableLines
+	}
+
+	track := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	thumb := lipgloss.NewStyle().Foreground(lipgloss.Blue)
+
+	var sb strings.Builder
+	for i := 0; i < trackHeight; i++ {
+		if i > 0 {
+			sb.WriteByte('\n')
+		}
+		if i >= thumbPos && i < thumbPos+thumbSize {
+			sb.WriteString(thumb.Render("┃"))
+		} else {
+			sb.WriteString(track.Render("│"))
+		}
+	}
+	return sb.String()
 }
 
 func (m mainModel) resultsView() string {
