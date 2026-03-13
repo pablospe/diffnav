@@ -765,15 +765,12 @@ func (m mainModel) openInEditor() tea.Cmd {
 	})
 }
 
-// overlayBounds returns the x, y, width, height of an overlay given its inner content dimensions.
-// Accounts for border (1) and padding (1 vertical, 3 horizontal) on each side.
-func (m mainModel) overlayBounds(contentWidth, contentHeight int) (int, int, int, int) {
-	// border=1 + padding=3 on each side horizontally, border=1 + padding=1 on each side vertically
-	totalW := contentWidth + 2*1 + 2*3
-	totalH := contentHeight + 2*1 + 2*1
+// overlayBounds returns the x, y, width, height of an overlay given the
+// rendered (styled) view dimensions — matching View()'s centering logic.
+func (m mainModel) overlayBounds(renderedWidth, renderedHeight int) (int, int, int, int) {
 	row := m.height/4 - 2
-	col := m.width/2 - contentWidth/2 - 1 - 3 // center then offset by left border+padding
-	return col, row, totalW, totalH
+	col := m.width/2 - renderedWidth/2
+	return col, row, renderedWidth, renderedHeight
 }
 
 func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
@@ -782,16 +779,21 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		switch msg := msg.(type) {
 		case tea.MouseClickMsg:
 			if msg.Button == tea.MouseLeft {
-				var contentW, contentH int
+				s := lipgloss.NewStyle().
+					Border(lipgloss.NormalBorder(), true).
+					Padding(1, 3).
+					BorderForeground(lipgloss.Blue)
+				var rendered string
 				if m.messageOpen {
-					contentW = m.messageVp.Width()
-					contentH = m.messageVp.Height()
+					vpView := m.messageVp.View()
+					if m.messageVp.TotalLineCount() > m.messageVp.Height() {
+						vpView = lipgloss.JoinHorizontal(lipgloss.Top, vpView, " ", m.renderScrollbar())
+					}
+					rendered = s.Render(vpView)
 				} else {
-					helpView := m.help.View()
-					contentW = lipgloss.Width(helpView)
-					contentH = lipgloss.Height(helpView)
+					rendered = s.Render(m.help.View())
 				}
-				ox, oy, ow, oh := m.overlayBounds(contentW, contentH)
+				ox, oy, ow, oh := m.overlayBounds(lipgloss.Width(rendered), lipgloss.Height(rendered))
 				if msg.X < ox || msg.X >= ox+ow || msg.Y < oy || msg.Y >= oy+oh {
 					// Click outside: close overlay.
 					m.messageOpen = false
@@ -821,9 +823,9 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		default:
 			if m.messageOpen {
 				if msg.Mouse().Button == tea.MouseWheelDown {
-					m.messageVp.ScrollDown(3)
+					m.messageVp.ScrollDown(scrollLines)
 				} else if msg.Mouse().Button == tea.MouseWheelUp {
-					m.messageVp.ScrollUp(3)
+					m.messageVp.ScrollUp(scrollLines)
 				}
 			}
 			return m, nil
