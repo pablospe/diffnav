@@ -37,6 +37,8 @@ const (
 	zoneFileTree      = "filetree"
 	zoneSearchResults = "searchresults"
 	zoneDiffViewer    = "diffviewer"
+	zoneHelp          = "help"
+	zoneCommitMsg     = "commitmsg"
 
 	// Sidebar resize detection threshold in pixels.
 	sidebarGrabThreshold = 2
@@ -76,6 +78,8 @@ type mainModel struct {
 	sideBySide        bool
 	help              help.Model
 	helpOpen          bool
+	messageOpen       bool
+	preamble          string
 }
 
 func New(input string, cfg config.Config) mainModel {
@@ -132,12 +136,20 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, keys.ToggleHelp):
 			m.helpOpen = !m.helpOpen
+			m.messageOpen = false
 			return m, tea.Batch(cmds...)
-		case m.helpOpen && (key.Matches(msg, keys.Quit) || msg.Key().Code == tea.KeyEscape):
+		case key.Matches(msg, keys.ToggleMessage):
+			if m.preamble != "" {
+				m.messageOpen = !m.messageOpen
+				m.helpOpen = false
+			}
+			return m, tea.Batch(cmds...)
+		case (m.helpOpen || m.messageOpen) && (key.Matches(msg, keys.Quit) || msg.Key().Code == tea.KeyEscape):
 			m.helpOpen = false
+			m.messageOpen = false
 			return m, tea.Batch(cmds...)
-		case m.helpOpen:
-			// Block all other keys while help is open
+		case m.helpOpen || m.messageOpen:
+			// Block all other keys while an overlay is open
 			return m, tea.Batch(cmds...)
 		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
@@ -232,7 +244,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		m.fileTree = m.fileTree.SetFiles(m.files)
-		m.diffViewer.SetPreamble(strings.TrimSpace(msg.preamble))
+		m.preamble = strings.TrimSpace(msg.preamble)
+		m.diffViewer.SetPreamble(m.preamble)
 		m.diffViewer, cmd = m.diffViewer.SetDirPatch("/", m.fileTree.GetCurrNodeDesendantDiffs())
 		cmds = append(cmds, cmd)
 
@@ -450,6 +463,21 @@ func (m mainModel) View() tea.View {
 		)
 	}
 
+	if m.messageOpen {
+		msgView := m.messageView()
+		s := lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder(), true).
+			Padding(1, 3).
+			BorderForeground(lipgloss.Blue)
+		row := m.height/4 - 2
+		col := m.width / 2
+		col -= lipgloss.Width(msgView) / 2
+		layers = append(
+			layers,
+			lipgloss.NewLayer(s.Render(msgView)).X(col).Y(row),
+		)
+	}
+
 	comp := lipgloss.NewCompositor(layers...)
 
 	view.Content = comp.Render()
@@ -473,19 +501,124 @@ func (m mainModel) fetchFileTree() tea.Msg {
 	return fileTreeMsg{files: files, preamble: preamble}
 }
 
+func (m mainModel) commitSubject() string {
+	if m.preamble == "" {
+		return ""
+	}
+	for _, line := range strings.Split(m.preamble, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		// Skip metadata lines (commit hash, Author:, Date:, Merge:, etc.)
+		if strings.HasPrefix(trimmed, "commit ") ||
+			strings.HasPrefix(trimmed, "Author:") ||
+			strings.HasPrefix(trimmed, "AuthorDate:") ||
+			strings.HasPrefix(trimmed, "Date:") ||
+			strings.HasPrefix(trimmed, "Commit:") ||
+			strings.HasPrefix(trimmed, "CommitDate:") ||
+			strings.HasPrefix(trimmed, "Merge:") {
+			continue
+		}
+		return trimmed
+	}
+	return ""
+}
+
 func (m mainModel) footerView() string {
 	base := lipgloss.NewStyle().Background(common.Colors[common.DarkerSelected])
 	files := fmt.Sprintf(" %d files", len(m.files))
 	sep := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack).Render(" • ")
 	added, deleted := m.diffViewer.RootDiffStats()
-	help := base.Background(lipgloss.BrightBlack).PaddingLeft(1).PaddingRight(1).Render("F1/? help")
+	help := zone.Mark(zoneHelp, base.Background(lipgloss.BrightBlack).PaddingLeft(1).PaddingRight(1).Render("F1/? help"))
 	stats := filenode.ViewDiffStats(added, deleted, base)
-	spacing := base.Render(strings.Repeat(" ", max(0, m.width-lipgloss.Width(stats)-
-		lipgloss.Width(help)-lipgloss.Width(files)-lipgloss.Width(sep))))
+
+	left := lipgloss.JoinHorizontal(lipgloss.Top, files, sep, stats)
+	rightWidth := lipgloss.Width(help)
+	availableWidth := m.width - lipgloss.Width(left) - rightWidth
+
+	subject := m.commitSubject()
+	if subject != "" && availableWidth > 10 {
+		// Truncate subject if needed, leaving room for sep + padding
+		maxSubjectWidth := availableWidth - lipgloss.Width(sep) - 1
+		if maxSubjectWidth > 0 {
+			if len(subject) > maxSubjectWidth {
+				subject = subject[:maxSubjectWidth-1] + "…"
+			}
+			commitMsg := zone.Mark(zoneCommitMsg, base.Foreground(lipgloss.BrightBlack).Render(subject))
+			left = lipgloss.JoinHorizontal(lipgloss.Top, left, sep, commitMsg)
+		}
+	}
+
+	spacing := base.Render(strings.Repeat(" ", max(0, m.width-lipgloss.Width(left)-rightWidth)))
 	return base.
 		Width(m.width).
 		Height(1).
-		Render(lipgloss.JoinHorizontal(lipgloss.Top, files, sep, stats, spacing, help))
+		Render(lipgloss.JoinHorizontal(lipgloss.Top, left, spacing, help))
+}
+
+func (m mainModel) messageView() string {
+	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	yellow := lipgloss.NewStyle().Foreground(lipgloss.Yellow)
+	green := lipgloss.NewStyle().Foreground(lipgloss.Green)
+	red := lipgloss.NewStyle().Foreground(lipgloss.Red)
+	cyan := lipgloss.NewStyle().Foreground(lipgloss.Cyan)
+
+	maxWidth := min(m.width*3/4, 80)
+
+	var out []string
+
+	// Render preamble lines.
+	for _, line := range strings.Split(m.preamble, "\n") {
+		switch {
+		case strings.HasPrefix(line, "commit "):
+			out = append(out, dim.Render("commit ")+yellow.Render(strings.TrimPrefix(line, "commit ")))
+		case strings.HasPrefix(line, "Author:"),
+			strings.HasPrefix(line, "AuthorDate:"),
+			strings.HasPrefix(line, "Date:"),
+			strings.HasPrefix(line, "Commit:"),
+			strings.HasPrefix(line, "CommitDate:"),
+			strings.HasPrefix(line, "Merge:"):
+			out = append(out, dim.Render(line))
+		default:
+			out = append(out, line)
+		}
+	}
+
+	// File list separator.
+	sepWidth := maxWidth - 8 // account for padding/borders
+	if sepWidth < 10 {
+		sepWidth = 10
+	}
+	out = append(out, "")
+	out = append(out, dim.Render(strings.Repeat("─", sepWidth)))
+	out = append(out, "")
+
+	// Render file list.
+	for _, f := range m.files {
+		var status string
+		var name string
+		switch {
+		case f.IsNew:
+			status = green.Render("A")
+			name = f.NewName
+		case f.IsDelete:
+			status = red.Render("D")
+			name = f.OldName
+		case f.IsRename:
+			status = cyan.Render("R")
+			name = f.OldName + " → " + f.NewName
+		case f.IsCopy:
+			status = cyan.Render("C")
+			name = f.OldName + " → " + f.NewName
+		default:
+			status = yellow.Render("M")
+			name = f.NewName
+		}
+		out = append(out, " "+status+" "+name)
+	}
+
+	return strings.Join(out, "\n")
 }
 
 func (m mainModel) resultsView() string {
@@ -592,6 +725,16 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			}
 			if !m.searching && zone.Get(zoneFileTree).InBounds(msg) {
 				return m.handleFileTreeClick(msg)
+			}
+			if zone.Get(zoneHelp).InBounds(msg) {
+				m.helpOpen = !m.helpOpen
+				m.messageOpen = false
+				return m, nil
+			}
+			if zone.Get(zoneCommitMsg).InBounds(msg) && m.preamble != "" {
+				m.messageOpen = !m.messageOpen
+				m.helpOpen = false
+				return m, nil
 			}
 		}
 

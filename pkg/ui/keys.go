@@ -19,6 +19,7 @@ type KeyMap struct {
 	ToggleDiffView  key.Binding
 	ToggleIconStyle key.Binding
 	ToggleHelp      key.Binding
+	ToggleMessage   key.Binding
 }
 
 var keys = &KeyMap{
@@ -86,6 +87,10 @@ var keys = &KeyMap{
 		key.WithKeys("?", "f1"),
 		key.WithHelp("F1/?", "toggle help"),
 	),
+	ToggleMessage: key.NewBinding(
+		key.WithKeys("m"),
+		key.WithHelp("m", "commit info"),
+	),
 }
 
 func KeyGroups() [][]key.Binding {
@@ -103,6 +108,7 @@ func KeyGroups() [][]key.Binding {
 		keys.ToggleDiffView,
 		keys.ToggleIconStyle,
 	}, {
+		keys.ToggleMessage,
 		keys.ToggleHelp,
 		keys.Quit,
 	}}
