@@ -38,7 +38,7 @@ const (
 	zoneSearchResults = "searchresults"
 	zoneDiffViewer    = "diffviewer"
 	zoneHelp          = "help"
-	zoneCommitMsg     = "commitmsg"
+	zoneFooter        = "footer"
 
 	// Sidebar resize detection threshold in pixels.
 	sidebarGrabThreshold = 2
@@ -559,16 +559,17 @@ func (m mainModel) footerView() string {
 			if len(subject) > maxSubjectWidth {
 				subject = subject[:maxSubjectWidth-1] + "…"
 			}
-			commitMsg := zone.Mark(zoneCommitMsg, base.Foreground(lipgloss.BrightBlack).Render(subject))
+			commitMsg := base.Foreground(lipgloss.BrightBlack).Render(subject)
 			left = lipgloss.JoinHorizontal(lipgloss.Top, left, sep, commitMsg)
 		}
 	}
 
 	spacing := base.Render(strings.Repeat(" ", max(0, m.width-lipgloss.Width(left)-rightWidth)))
+	footerLeft := zone.Mark(zoneFooter, lipgloss.JoinHorizontal(lipgloss.Top, left, spacing))
 	return base.
 		Width(m.width).
 		Height(1).
-		Render(lipgloss.JoinHorizontal(lipgloss.Top, left, spacing, help))
+		Render(lipgloss.JoinHorizontal(lipgloss.Top, footerLeft, help))
 }
 
 func (m *mainModel) messageView() string {
@@ -824,7 +825,7 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				m.messageOpen = false
 				return m, nil
 			}
-			if zone.Get(zoneCommitMsg).InBounds(msg) && m.preamble != "" {
+			if zone.Get(zoneFooter).InBounds(msg) && m.preamble != "" {
 				m.messageOpen = !m.messageOpen
 				m.helpOpen = false
 				return m, nil
