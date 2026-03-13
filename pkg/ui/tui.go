@@ -80,6 +80,7 @@ type mainModel struct {
 	helpOpen          bool
 	messageOpen       bool
 	messageVp         viewport.Model
+	messageFileStart  int // line index where file list begins in messageView content
 	preamble          string
 }
 
@@ -576,7 +577,7 @@ func (m mainModel) footerView() string {
 		Render(lipgloss.JoinHorizontal(lipgloss.Top, left, spacing, help))
 }
 
-func (m mainModel) messageView() string {
+func (m *mainModel) messageView() string {
 	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	yellow := lipgloss.NewStyle().Foreground(lipgloss.Yellow)
 	green := lipgloss.NewStyle().Foreground(lipgloss.Green)
@@ -614,6 +615,7 @@ func (m mainModel) messageView() string {
 	out = append(out, "")
 
 	// Render file list.
+	m.messageFileStart = len(out)
 	for _, f := range m.files {
 		var status string
 		var name string
@@ -755,8 +757,28 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				}
 				ox, oy, ow, oh := m.overlayBounds(contentW, contentH)
 				if msg.X < ox || msg.X >= ox+ow || msg.Y < oy || msg.Y >= oy+oh {
+					// Click outside: close overlay.
 					m.messageOpen = false
 					m.helpOpen = false
+					return m, nil
+				}
+				// Click inside message overlay: check if a file was clicked.
+				if m.messageOpen {
+					// Content area starts after border (1) + padding (1).
+					contentY := msg.Y - oy - 2
+					// Account for viewport scroll offset.
+					lineIndex := contentY + m.messageVp.YOffset()
+					fileIndex := lineIndex - m.messageFileStart
+					if fileIndex >= 0 && fileIndex < len(m.files) {
+						path := filenode.GetFileName(m.files[fileIndex])
+						m.fileTree.SetCursorByPath(path)
+						node := m.fileTree.GetCurrNode()
+						var cmd tea.Cmd
+						m, cmd = m.setNodeDiff(node)
+						m.diffViewer.GoToTop()
+						m.messageOpen = false
+						return m, cmd
+					}
 				}
 				return m, nil
 			}
