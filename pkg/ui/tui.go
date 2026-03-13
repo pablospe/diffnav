@@ -79,6 +79,7 @@ type mainModel struct {
 	help              help.Model
 	helpOpen          bool
 	messageOpen       bool
+	messageVp         viewport.Model
 	preamble          string
 }
 
@@ -142,11 +143,20 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.preamble != "" {
 				m.messageOpen = !m.messageOpen
 				m.helpOpen = false
+				if m.messageOpen {
+					m.updateMessageVp()
+				}
 			}
 			return m, tea.Batch(cmds...)
 		case (m.helpOpen || m.messageOpen) && (key.Matches(msg, keys.Quit) || msg.Key().Code == tea.KeyEscape):
 			m.helpOpen = false
 			m.messageOpen = false
+			return m, tea.Batch(cmds...)
+		case m.messageOpen && (key.Matches(msg, keys.Down) || key.Matches(msg, keys.CtrlD)):
+			m.messageVp.ScrollDown(1)
+			return m, tea.Batch(cmds...)
+		case m.messageOpen && (key.Matches(msg, keys.Up) || key.Matches(msg, keys.CtrlU)):
+			m.messageVp.ScrollUp(1)
 			return m, tea.Batch(cmds...)
 		case m.helpOpen || m.messageOpen:
 			// Block all other keys while an overlay is open
@@ -243,6 +253,9 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.fileTree.SetSize(tWidth, tHeight)
 		m.search.SetWidth(m.searchWidth())
+		if m.messageOpen {
+			m.updateMessageVp()
+		}
 
 	case fileTreeMsg:
 		m.files = msg.files
@@ -470,17 +483,17 @@ func (m mainModel) View() tea.View {
 	}
 
 	if m.messageOpen {
-		msgView := m.messageView()
+		vpView := m.messageVp.View()
 		s := lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder(), true).
 			Padding(1, 3).
 			BorderForeground(lipgloss.Blue)
 		row := m.height/4 - 2
 		col := m.width / 2
-		col -= lipgloss.Width(msgView) / 2
+		col -= lipgloss.Width(vpView) / 2
 		layers = append(
 			layers,
-			lipgloss.NewLayer(s.Render(msgView)).X(col).Y(row),
+			lipgloss.NewLayer(s.Render(vpView)).X(col).Y(row),
 		)
 	}
 
@@ -627,6 +640,20 @@ func (m mainModel) messageView() string {
 	return strings.Join(out, "\n")
 }
 
+func (m *mainModel) updateMessageVp() {
+	content := m.messageView()
+	maxWidth := min(m.width*3/4, 80)
+	// Max height: leave room for border (2) + padding (2) + some margin
+	maxHeight := m.height/2 - 4
+	if maxHeight < 5 {
+		maxHeight = 5
+	}
+	m.messageVp.SetWidth(maxWidth)
+	m.messageVp.SetHeight(maxHeight)
+	m.messageVp.SetContent(content)
+	m.messageVp.GotoTop()
+}
+
 func (m mainModel) resultsView() string {
 	sb := strings.Builder{}
 	for i, f := range m.filtered {
@@ -701,6 +728,19 @@ func (m mainModel) openInEditor() tea.Cmd {
 }
 
 func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	// Scroll the message overlay if open.
+	if m.messageOpen {
+		if msg.Mouse().Button == tea.MouseWheelDown {
+			m.messageVp.ScrollDown(3)
+			return m, nil
+		}
+		if msg.Mouse().Button == tea.MouseWheelUp {
+			m.messageVp.ScrollUp(3)
+			return m, nil
+		}
+		return m, nil
+	}
+
 	// Handle scroll wheel first.
 	if msg.Mouse().Button == tea.MouseWheelUp || msg.Mouse().Button == tea.MouseWheelDown {
 		return m.handleScroll(msg)
