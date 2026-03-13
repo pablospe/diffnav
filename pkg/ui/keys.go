@@ -83,8 +83,8 @@ var keys = &KeyMap{
 		key.WithHelp("i", "toggle icon style"),
 	),
 	ToggleHelp: key.NewBinding(
-		key.WithKeys("?"),
-		key.WithHelp("?", "toggle help"),
+		key.WithKeys("?", "f1"),
+		key.WithHelp("F1/?", "toggle help"),
 	),
 }
 

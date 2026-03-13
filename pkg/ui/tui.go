@@ -130,10 +130,17 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch {
-		case key.Matches(msg, keys.Quit):
-			return m, tea.Quit
 		case key.Matches(msg, keys.ToggleHelp):
 			m.helpOpen = !m.helpOpen
+			return m, tea.Batch(cmds...)
+		case m.helpOpen && (key.Matches(msg, keys.Quit) || msg.Key().Code == tea.KeyEscape):
+			m.helpOpen = false
+			return m, tea.Batch(cmds...)
+		case m.helpOpen:
+			// Block all other keys while help is open
+			return m, tea.Batch(cmds...)
+		case key.Matches(msg, keys.Quit):
+			return m, tea.Quit
 		case key.Matches(msg, keys.Search):
 			m.searching = true
 			m.search.SetWidth(m.searchWidth())
@@ -471,7 +478,7 @@ func (m mainModel) footerView() string {
 	files := fmt.Sprintf(" %d files", len(m.files))
 	sep := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack).Render(" • ")
 	added, deleted := m.diffViewer.RootDiffStats()
-	help := base.Background(lipgloss.BrightBlack).PaddingLeft(1).PaddingRight(1).Render("? help")
+	help := base.Background(lipgloss.BrightBlack).PaddingLeft(1).PaddingRight(1).Render("F1/? help")
 	stats := filenode.ViewDiffStats(added, deleted, base)
 	spacing := base.Render(strings.Repeat(" ", max(0, m.width-lipgloss.Width(stats)-
 		lipgloss.Width(help)-lipgloss.Width(files)-lipgloss.Width(sep))))
