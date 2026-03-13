@@ -130,17 +130,17 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch {
-		case key.Matches(msg, keys.Quit):
-			return m, tea.Quit
 		case key.Matches(msg, keys.ToggleHelp):
 			m.helpOpen = !m.helpOpen
 			return m, tea.Batch(cmds...)
-		case m.helpOpen && msg.Key().Code == tea.KeyEscape:
+		case m.helpOpen && (key.Matches(msg, keys.Quit) || msg.Key().Code == tea.KeyEscape):
 			m.helpOpen = false
 			return m, tea.Batch(cmds...)
 		case m.helpOpen:
 			// Block all other keys while help is open
 			return m, tea.Batch(cmds...)
+		case key.Matches(msg, keys.Quit):
+			return m, tea.Quit
 		case key.Matches(msg, keys.Search):
 			m.searching = true
 			m.search.SetWidth(m.searchWidth())
