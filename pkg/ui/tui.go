@@ -727,18 +727,49 @@ func (m mainModel) openInEditor() tea.Cmd {
 	})
 }
 
+// overlayBounds returns the x, y, width, height of an overlay given its inner content dimensions.
+// Accounts for border (1) and padding (1 vertical, 3 horizontal) on each side.
+func (m mainModel) overlayBounds(contentWidth, contentHeight int) (int, int, int, int) {
+	// border=1 + padding=3 on each side horizontally, border=1 + padding=1 on each side vertically
+	totalW := contentWidth + 2*1 + 2*3
+	totalH := contentHeight + 2*1 + 2*1
+	row := m.height/4 - 2
+	col := m.width/2 - contentWidth/2 - 1 - 3 // center then offset by left border+padding
+	return col, row, totalW, totalH
+}
+
 func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-	// Scroll the message overlay if open.
-	if m.messageOpen {
-		if msg.Mouse().Button == tea.MouseWheelDown {
-			m.messageVp.ScrollDown(3)
+	// Handle overlays: scroll or click-outside-to-close.
+	if m.messageOpen || m.helpOpen {
+		switch msg := msg.(type) {
+		case tea.MouseClickMsg:
+			if msg.Button == tea.MouseLeft {
+				var contentW, contentH int
+				if m.messageOpen {
+					contentW = m.messageVp.Width()
+					contentH = m.messageVp.Height()
+				} else {
+					helpView := m.help.View()
+					contentW = lipgloss.Width(helpView)
+					contentH = lipgloss.Height(helpView)
+				}
+				ox, oy, ow, oh := m.overlayBounds(contentW, contentH)
+				if msg.X < ox || msg.X >= ox+ow || msg.Y < oy || msg.Y >= oy+oh {
+					m.messageOpen = false
+					m.helpOpen = false
+				}
+				return m, nil
+			}
+		default:
+			if m.messageOpen {
+				if msg.Mouse().Button == tea.MouseWheelDown {
+					m.messageVp.ScrollDown(3)
+				} else if msg.Mouse().Button == tea.MouseWheelUp {
+					m.messageVp.ScrollUp(3)
+				}
+			}
 			return m, nil
 		}
-		if msg.Mouse().Button == tea.MouseWheelUp {
-			m.messageVp.ScrollUp(3)
-			return m, nil
-		}
-		return m, nil
 	}
 
 	// Handle scroll wheel first.
