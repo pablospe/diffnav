@@ -187,6 +187,12 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.activePanel = FileTreePanel
 				}
 			}
+		case key.Matches(msg, keys.PrevFile):
+			m, cmd = m.moveToFile(-1)
+			cmds = append(cmds, cmd)
+		case key.Matches(msg, keys.NextFile):
+			m, cmd = m.moveToFile(1)
+			cmds = append(cmds, cmd)
 		case key.Matches(msg, keys.Up):
 			if m.activePanel == FileTreePanel {
 				m, cmd = m.moveCursor(-1)
@@ -748,6 +754,27 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+func (m mainModel) moveToFile(movement int) (mainModel, tea.Cmd) {
+	var cmd tea.Cmd
+	var moved bool
+	switch movement {
+	case -1:
+		moved = m.fileTree.PrevFile()
+	case 1:
+		moved = m.fileTree.NextFile()
+	}
+
+	if !moved {
+		return m, nil
+	}
+
+	node := m.fileTree.GetCurrNode()
+	m, cmd = m.setNodeDiff(node)
+	m.diffViewer.GoToTop()
+
+	return m, cmd
 }
 
 func (m mainModel) moveCursor(movement int) (mainModel, tea.Cmd) {

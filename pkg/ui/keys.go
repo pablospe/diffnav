@@ -8,6 +8,8 @@ type KeyMap struct {
 	ToggleNode      key.Binding
 	Up              key.Binding
 	Down            key.Binding
+	NextFile        key.Binding
+	PrevFile        key.Binding
 	CtrlD           key.Binding
 	CtrlU           key.Binding
 	ToggleFileTree  key.Binding
@@ -41,6 +43,14 @@ var keys = &KeyMap{
 	Down: key.NewBinding(
 		key.WithKeys("down", "j"),
 		key.WithHelp("↓/j", "next file"),
+	),
+	NextFile: key.NewBinding(
+		key.WithKeys("n"),
+		key.WithHelp("n", "next file"),
+	),
+	PrevFile: key.NewBinding(
+		key.WithKeys("p", "N"),
+		key.WithHelp("p/N", "prev file"),
 	),
 	CtrlD: key.NewBinding(
 		key.WithKeys("ctrl+d"),
@@ -93,6 +103,8 @@ func KeyGroups() [][]key.Binding {
 		keys.SwitchPanel,
 		keys.Up,
 		keys.Down,
+		keys.NextFile,
+		keys.PrevFile,
 		keys.CtrlD,
 		keys.CtrlU,
 	}, {

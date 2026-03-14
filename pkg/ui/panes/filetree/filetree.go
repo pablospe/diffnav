@@ -131,6 +131,52 @@ func (m *Model) Up() {
 	m.t.Up()
 }
 
+// NextFile moves the cursor to the next file node, skipping directories.
+func (m *Model) NextFile() bool {
+	curr := m.t.NodeAtCurrentOffset()
+	if curr == nil {
+		return false
+	}
+	nodes := m.t.AllNodes()
+	found := false
+	for _, node := range nodes {
+		if !found {
+			if node.YOffset() == curr.YOffset() {
+				found = true
+			}
+			continue
+		}
+		if _, ok := node.GivenValue().(*filenode.FileNode); ok {
+			m.t.SetYOffset(node.YOffset())
+			return true
+		}
+	}
+	return false
+}
+
+// PrevFile moves the cursor to the previous file node, skipping directories.
+func (m *Model) PrevFile() bool {
+	curr := m.t.NodeAtCurrentOffset()
+	if curr == nil {
+		return false
+	}
+	nodes := m.t.AllNodes()
+	lastFileOffset := -1
+	for _, node := range nodes {
+		if node.YOffset() >= curr.YOffset() {
+			break
+		}
+		if _, ok := node.GivenValue().(*filenode.FileNode); ok {
+			lastFileOffset = node.YOffset()
+		}
+	}
+	if lastFileOffset >= 0 {
+		m.t.SetYOffset(lastFileOffset)
+		return true
+	}
+	return false
+}
+
 func (m *Model) SetCursorByPath(path string) {
 	if len(m.files) == 0 {
 		return

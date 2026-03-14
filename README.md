@@ -144,8 +144,10 @@ If you want the exact delta configuration I'm using - [it can be found here](htt
 
 | Key               | Description                      |
 | :---------------- | :------------------------------- |
-| <kbd>j</kbd>      | Next file                        |
-| <kbd>k</kbd>      | Previous file                    |
+| <kbd>j</kbd>      | Next node                        |
+| <kbd>k</kbd>      | Previous node                    |
+| <kbd>n</kbd>      | Next file                        |
+| <kbd>p</kbd> / <kbd>N</kbd> | Previous file          |
 | <kbd>Ctrl-d</kbd> | Scroll the diff down             |
 | <kbd>Ctrl-u</kbd> | Scroll the diff up               |
 | <kbd>e</kbd>      | Toggle the file tree             |
