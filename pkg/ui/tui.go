@@ -155,11 +155,17 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.helpOpen = false
 			m.messageOpen = false
 			return m, tea.Batch(cmds...)
-		case m.messageOpen && (key.Matches(msg, keys.Down) || key.Matches(msg, keys.CtrlD)):
+		case m.messageOpen && key.Matches(msg, keys.Down):
 			m.messageVp.ScrollDown(1)
 			return m, tea.Batch(cmds...)
-		case m.messageOpen && (key.Matches(msg, keys.Up) || key.Matches(msg, keys.CtrlU)):
+		case m.messageOpen && key.Matches(msg, keys.CtrlD):
+			m.messageVp.ScrollDown(m.messageVp.Height() / 2)
+			return m, tea.Batch(cmds...)
+		case m.messageOpen && key.Matches(msg, keys.Up):
 			m.messageVp.ScrollUp(1)
+			return m, tea.Batch(cmds...)
+		case m.messageOpen && key.Matches(msg, keys.CtrlU):
+			m.messageVp.ScrollUp(m.messageVp.Height() / 2)
 			return m, tea.Batch(cmds...)
 		case m.helpOpen || m.messageOpen:
 			// Block all other keys while an overlay is open
@@ -279,7 +285,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Route messages: key messages go only to active panel, other messages go to both.
-	// Exception: ctrl+d/ctrl+u always go to diffViewer for scrolling.
+	// Exception: ctrl+d/ctrl+u go to diffViewer for scrolling (unless an overlay is open).
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -589,13 +595,10 @@ func resolveBranch(preamble string) string {
 					}
 				}
 			}
-			// Extract short hash for --points-at lookup.
+			// Extract hash for --points-at lookup.
 			hash := strings.TrimPrefix(trimmed, "commit ")
 			if idx := strings.Index(hash, " "); idx > 0 {
 				hash = hash[:idx]
-			}
-			if len(hash) > 7 {
-				hash = hash[:7]
 			}
 			if hash == "" {
 				return ""
