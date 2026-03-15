@@ -479,9 +479,13 @@ func (m mainModel) View() tea.View {
 			}
 			headerParts = headerParts + sep + strings.Join(infoParts, " ")
 
-			// Branch ref in brackets.
-			if m.branch != "" {
-				headerParts = headerParts + sep + refStyle.Render("["+m.branch+"]")
+			// Branch ref in brackets: prefer preamble decoration, fall back to current branch.
+			branch := meta.branch
+			if branch == "" {
+				branch = m.branch
+			}
+			if branch != "" {
+				headerParts = headerParts + sep + refStyle.Render("["+branch+"]")
 			}
 
 			// Commit subject.
@@ -489,9 +493,7 @@ func (m mainModel) View() tea.View {
 			if subject != "" {
 				maxSubjectWidth := m.width - lipgloss.Width(headerParts) - 2
 				if maxSubjectWidth > 0 {
-					if len(subject) > maxSubjectWidth {
-						subject = subject[:maxSubjectWidth-1] + "…"
-					}
+					subject = utils.TruncateString(subject, maxSubjectWidth)
 					headerParts = headerParts + " " + subject
 				}
 			}
@@ -521,12 +523,12 @@ func (m mainModel) View() tea.View {
 			Border(lipgloss.NormalBorder(), true).
 			Padding(1, 3).
 			BorderForeground(lipgloss.Blue)
+		rendered := s.Render(helpView)
 		row := m.height/4 - 2 // just a bit above the center
-		col := m.width / 2
-		col -= lipgloss.Width(helpView) / 2
+		col := m.width/2 - lipgloss.Width(rendered)/2
 		layers = append(
 			layers,
-			lipgloss.NewLayer(s.Render(helpView)).X(col).Y(row),
+			lipgloss.NewLayer(rendered).X(col).Y(row),
 		)
 	}
 
@@ -540,12 +542,12 @@ func (m mainModel) View() tea.View {
 			Border(lipgloss.NormalBorder(), true).
 			Padding(1, 3).
 			BorderForeground(lipgloss.Blue)
+		rendered := s.Render(vpView)
 		row := m.height/4 - 2
-		col := m.width / 2
-		col -= lipgloss.Width(vpView) / 2
+		col := m.width/2 - lipgloss.Width(rendered)/2
 		layers = append(
 			layers,
-			lipgloss.NewLayer(s.Render(vpView)).X(col).Y(row),
+			lipgloss.NewLayer(rendered).X(col).Y(row),
 		)
 	}
 
@@ -639,7 +641,7 @@ func (m mainModel) parseCommitMeta() commitMeta {
 			}
 			parts := strings.Fields(a)
 			if len(parts) >= 2 {
-				meta.author = string(parts[0][0]) + parts[len(parts)-1]
+				meta.author = string([]rune(parts[0])[:1]) + parts[len(parts)-1]
 			} else {
 				meta.author = a
 			}
@@ -882,6 +884,7 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 			}
+			return m, nil // Block non-left clicks while overlay is open
 		default:
 			if m.messageOpen {
 				if msg.Mouse().Button == tea.MouseWheelDown {
