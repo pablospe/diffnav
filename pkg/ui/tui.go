@@ -604,9 +604,9 @@ func (m mainModel) resolveBranch() string {
 	if err != nil {
 		return ""
 	}
-	// Parse output: "* current" / "+ worktree" / "  branch", one per line.
+	// Parse output: "* branch-name" or "  branch-name", one per line.
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		b := strings.TrimLeft(line, " *+")
+		b := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "*"))
 		if b != "" {
 			return b
 		}
