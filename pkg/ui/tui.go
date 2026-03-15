@@ -82,20 +82,13 @@ type mainModel struct {
 	messageOpen       bool
 	messageVp         viewport.Model
 	preamble          string
-	headHash          string
-	headBranch        string
+	commitBranch      string
 }
 
 func New(input string, cfg config.Config) mainModel {
 	m := mainModel{
 		input: input, isShowingFileTree: cfg.UI.ShowFileTree,
 		activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons, sideBySide: cfg.UI.SideBySide,
-	}
-	if out, err := exec.Command("git", "rev-parse", "HEAD").Output(); err == nil {
-		m.headHash = strings.TrimSpace(string(out))
-	}
-	if out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
-		m.headBranch = strings.TrimSpace(string(out))
 	}
 	m.fileTree = filetree.New(cfg)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
@@ -273,6 +266,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.fileTree = m.fileTree.SetFiles(m.files)
 		m.preamble = strings.TrimSpace(msg.preamble)
+		m.commitBranch = m.resolveBranch()
 		m.diffViewer.SetPreamble(m.preamble)
 		m.diffViewer, cmd = m.diffViewer.SetDirPatch("/", m.fileTree.GetCurrNodeDesendantDiffs())
 		cmds = append(cmds, cmd)
@@ -483,14 +477,9 @@ func (m mainModel) View() tea.View {
 			}
 			headerParts = headerParts + sep + strings.Join(infoParts, " ")
 
-			// Branch ref in brackets: from preamble decoration, or
-			// from current branch if the commit matches HEAD.
-			branch := meta.branch
-			if branch == "" && m.headBranch != "" && strings.HasPrefix(m.headHash, meta.hash) {
-				branch = m.headBranch
-			}
-			if branch != "" {
-				headerParts = headerParts + sep + refStyle.Render("["+branch+"]")
+			// Branch ref in brackets.
+			if m.commitBranch != "" {
+				headerParts = headerParts + sep + refStyle.Render("["+m.commitBranch+"]")
 			}
 
 			// Commit subject.
@@ -600,6 +589,29 @@ func relativeTime(t time.Time) string {
 		years := int(d.Hours() / 24 / 365)
 		return fmt.Sprintf("%dY", years)
 	}
+}
+
+// resolveBranch finds branches pointing at the preamble commit.
+func (m mainModel) resolveBranch() string {
+	meta := m.parseCommitMeta()
+	if meta.branch != "" {
+		return meta.branch
+	}
+	if meta.hash == "" {
+		return ""
+	}
+	out, err := exec.Command("git", "branch", "--points-at", meta.hash).Output()
+	if err != nil {
+		return ""
+	}
+	// Parse output: "* branch-name" or "  branch-name", one per line.
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		b := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "*"))
+		if b != "" {
+			return b
+		}
+	}
+	return ""
 }
 
 type commitMeta struct {
