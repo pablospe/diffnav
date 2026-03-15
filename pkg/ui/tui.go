@@ -647,6 +647,12 @@ func (m mainModel) parseCommitMeta() commitMeta {
 			a = strings.TrimSpace(a)
 			if idx := strings.Index(a, " <"); idx > 0 {
 				a = a[:idx]
+			} else if strings.HasPrefix(a, "<") && strings.Contains(a, "@") {
+				// No name, only email: extract username from <user@example.com>
+				a = strings.TrimPrefix(a, "<")
+				if idx := strings.Index(a, "@"); idx > 0 {
+					a = a[:idx]
+				}
 			}
 			parts := strings.Fields(a)
 			if len(parts) >= 2 {
