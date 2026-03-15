@@ -465,7 +465,6 @@ func (m mainModel) View() tea.View {
 			Render("DIFFNAV")
 
 		sep := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack).Render(" • ")
-		// Tig gruvbox colors.
 		hashStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("132"))
 		dateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("172"))
 		authorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("109"))
