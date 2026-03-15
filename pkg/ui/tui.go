@@ -82,16 +82,12 @@ type mainModel struct {
 	messageOpen       bool
 	messageVp         viewport.Model
 	preamble          string
-	branch            string
 }
 
 func New(input string, cfg config.Config) mainModel {
 	m := mainModel{
 		input: input, isShowingFileTree: cfg.UI.ShowFileTree,
 		activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons, sideBySide: cfg.UI.SideBySide,
-	}
-	if out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
-		m.branch = strings.TrimSpace(string(out))
 	}
 	m.fileTree = filetree.New(cfg)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
@@ -479,13 +475,9 @@ func (m mainModel) View() tea.View {
 			}
 			headerParts = headerParts + sep + strings.Join(infoParts, " ")
 
-			// Branch ref in brackets: prefer preamble decoration, fall back to current branch.
-			branch := meta.branch
-			if branch == "" {
-				branch = m.branch
-			}
-			if branch != "" {
-				headerParts = headerParts + sep + refStyle.Render("["+branch+"]")
+			// Branch ref in brackets (only when present in preamble decoration).
+			if meta.branch != "" {
+				headerParts = headerParts + sep + refStyle.Render("["+meta.branch+"]")
 			}
 
 			// Commit subject.
