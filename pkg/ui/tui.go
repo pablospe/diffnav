@@ -865,6 +865,9 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 			if zone.Get(zoneHeader).InBounds(msg) && m.preamble != "" {
 				m.messageOpen = !m.messageOpen
 				m.helpOpen = false
+				if m.messageOpen {
+					m.updateMessageVp()
+				}
 				return m, nil
 			}
 		}
