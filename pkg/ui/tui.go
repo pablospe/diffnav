@@ -83,6 +83,7 @@ type mainModel struct {
 	messageVp         viewport.Model
 	preamble          string
 	commitBranch      string
+	cachedMeta        commitMeta
 }
 
 func New(input string, cfg config.Config) mainModel {
@@ -266,7 +267,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.fileTree = m.fileTree.SetFiles(m.files)
 		m.preamble = strings.TrimSpace(msg.preamble)
-		m.commitBranch = m.resolveBranch()
+		m.commitBranch = msg.branch
+		m.cachedMeta = m.parseCommitMeta()
 		m.diffViewer.SetPreamble(m.preamble)
 		m.diffViewer, cmd = m.diffViewer.SetDirPatch("/", m.fileTree.GetCurrNodeDesendantDiffs())
 		cmds = append(cmds, cmd)
@@ -464,7 +466,7 @@ func (m mainModel) View() tea.View {
 		refStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("072"))
 
 		headerParts := title
-		meta := m.parseCommitMeta()
+		meta := m.cachedMeta
 		if meta.hash != "" {
 			// Build info segment: hash date author
 			var infoParts []string
@@ -512,37 +514,13 @@ func (m mainModel) View() tea.View {
 	}
 
 	if m.helpOpen {
-		helpView := m.help.View()
-		s := lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), true).
-			Padding(1, 3).
-			BorderForeground(lipgloss.Blue)
-		rendered := s.Render(helpView)
-		row := m.height/4 - 2 // just a bit above the center
-		col := m.width/2 - lipgloss.Width(rendered)/2
-		layers = append(
-			layers,
-			lipgloss.NewLayer(rendered).X(col).Y(row),
-		)
+		rendered, col, row, _, _ := m.renderOverlay(m.help.View())
+		layers = append(layers, lipgloss.NewLayer(rendered).X(col).Y(row))
 	}
 
 	if m.messageOpen {
-		vpView := m.messageVp.View()
-		// Add scrollbar if content overflows.
-		if m.messageVp.TotalLineCount() > m.messageVp.Height() {
-			vpView = lipgloss.JoinHorizontal(lipgloss.Top, vpView, " ", m.renderScrollbar())
-		}
-		s := lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), true).
-			Padding(1, 3).
-			BorderForeground(lipgloss.Blue)
-		rendered := s.Render(vpView)
-		row := m.height/4 - 2
-		col := m.width/2 - lipgloss.Width(rendered)/2
-		layers = append(
-			layers,
-			lipgloss.NewLayer(rendered).X(col).Y(row),
-		)
+		rendered, col, row, _, _ := m.renderOverlay(m.messageViewContent())
+		layers = append(layers, lipgloss.NewLayer(rendered).X(col).Y(row))
 	}
 
 	comp := lipgloss.NewCompositor(layers...)
@@ -555,6 +533,7 @@ func (m mainModel) View() tea.View {
 type fileTreeMsg struct {
 	files    []*gitdiff.File
 	preamble string
+	branch   string
 }
 
 func (m mainModel) fetchFileTree() tea.Msg {
@@ -565,7 +544,8 @@ func (m mainModel) fetchFileTree() tea.Msg {
 	}
 	sortFiles(files)
 
-	return fileTreeMsg{files: files, preamble: preamble}
+	branch := resolveBranch(preamble)
+	return fileTreeMsg{files: files, preamble: preamble, branch: branch}
 }
 
 func relativeTime(t time.Time) string {
@@ -592,23 +572,45 @@ func relativeTime(t time.Time) string {
 }
 
 // resolveBranch finds branches pointing at the preamble commit.
-func (m mainModel) resolveBranch() string {
-	meta := m.parseCommitMeta()
-	if meta.branch != "" {
-		return meta.branch
-	}
-	if meta.hash == "" {
-		return ""
-	}
-	out, err := exec.Command("git", "branch", "--points-at", meta.hash).Output()
-	if err != nil {
-		return ""
-	}
-	// Parse output: "* branch-name" or "  branch-name", one per line.
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		b := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "*"))
-		if b != "" {
-			return b
+func resolveBranch(preamble string) string {
+	// Check for decoration in commit line: "commit abc123 (HEAD -> branch)"
+	for _, line := range strings.Split(preamble, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "commit ") {
+			if idx := strings.Index(trimmed, " ("); idx > 0 {
+				refs := trimmed[idx+2:]
+				if end := strings.Index(refs, ")"); end > 0 {
+					refs = refs[:end]
+				}
+				for _, ref := range strings.Split(refs, ",") {
+					ref = strings.TrimSpace(ref)
+					if strings.HasPrefix(ref, "HEAD -> ") {
+						return strings.TrimPrefix(ref, "HEAD -> ")
+					}
+				}
+			}
+			// Extract short hash for --points-at lookup.
+			hash := strings.TrimPrefix(trimmed, "commit ")
+			if idx := strings.Index(hash, " "); idx > 0 {
+				hash = hash[:idx]
+			}
+			if len(hash) > 7 {
+				hash = hash[:7]
+			}
+			if hash == "" {
+				return ""
+			}
+			out, err := exec.Command("git", "branch", "--points-at", hash).Output()
+			if err != nil {
+				return ""
+			}
+			for _, l := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+				b := strings.TrimLeft(l, " *+")
+				if b != "" {
+					return b
+				}
+			}
+			return ""
 		}
 	}
 	return ""
@@ -618,7 +620,6 @@ type commitMeta struct {
 	hash   string
 	date   string
 	author string
-	branch string
 }
 
 func (m mainModel) parseCommitMeta() commitMeta {
@@ -629,26 +630,15 @@ func (m mainModel) parseCommitMeta() commitMeta {
 	for _, line := range strings.Split(m.preamble, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "commit ") && meta.hash == "" {
-			rest := strings.TrimPrefix(trimmed, "commit ")
-			// Extract refs if present: "abc123 (HEAD -> branch, origin/branch)"
-			if idx := strings.Index(rest, " ("); idx > 0 {
-				refs := rest[idx+2:]
-				rest = rest[:idx]
-				if end := strings.Index(refs, ")"); end > 0 {
-					refs = refs[:end]
-				}
-				for _, ref := range strings.Split(refs, ",") {
-					ref = strings.TrimSpace(ref)
-					// "HEAD -> branch-name"
-					if strings.HasPrefix(ref, "HEAD -> ") {
-						meta.branch = strings.TrimPrefix(ref, "HEAD -> ")
-					}
-				}
+			h := strings.TrimPrefix(trimmed, "commit ")
+			// Strip refs decoration if present: "abc123 (HEAD -> branch)"
+			if idx := strings.Index(h, " ("); idx > 0 {
+				h = h[:idx]
 			}
-			if len(rest) > 7 {
-				rest = rest[:7]
+			if len(h) > 7 {
+				h = h[:7]
 			}
-			meta.hash = rest
+			meta.hash = h
 		}
 		if strings.HasPrefix(trimmed, "Author:") && meta.author == "" {
 			a := strings.TrimPrefix(trimmed, "Author:")
@@ -864,12 +854,32 @@ func (m mainModel) openInEditor() tea.Cmd {
 	})
 }
 
-// overlayBounds returns the x, y, width, height of an overlay given the
-// rendered (styled) view dimensions — matching View()'s centering logic.
-func (m mainModel) overlayBounds(renderedWidth, renderedHeight int) (int, int, int, int) {
+// messageViewContent returns the message overlay content (viewport + optional scrollbar).
+func (m mainModel) messageViewContent() string {
+	vpView := m.messageVp.View()
+	if m.messageVp.TotalLineCount() > m.messageVp.Height() {
+		vpView = lipgloss.JoinHorizontal(lipgloss.Top, vpView, " ", m.renderScrollbar())
+	}
+	return vpView
+}
+
+// overlayStyle returns the shared style for overlay panels (help, message).
+func overlayStyle() lipgloss.Style {
+	return lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder(), true).
+		Padding(1, 3).
+		BorderForeground(lipgloss.Blue)
+}
+
+// renderOverlay renders content with the overlay style and returns
+// the rendered string plus its position (col, row, width, height).
+func (m mainModel) renderOverlay(content string) (string, int, int, int, int) {
+	rendered := overlayStyle().Render(content)
+	w := lipgloss.Width(rendered)
+	h := lipgloss.Height(rendered)
 	row := m.height/4 - 2
-	col := m.width/2 - renderedWidth/2
-	return col, row, renderedWidth, renderedHeight
+	col := m.width/2 - w/2
+	return rendered, col, row, w, h
 }
 
 func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
@@ -878,21 +888,13 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 		switch msg := msg.(type) {
 		case tea.MouseClickMsg:
 			if msg.Button == tea.MouseLeft {
-				s := lipgloss.NewStyle().
-					Border(lipgloss.NormalBorder(), true).
-					Padding(1, 3).
-					BorderForeground(lipgloss.Blue)
-				var rendered string
+				var content string
 				if m.messageOpen {
-					vpView := m.messageVp.View()
-					if m.messageVp.TotalLineCount() > m.messageVp.Height() {
-						vpView = lipgloss.JoinHorizontal(lipgloss.Top, vpView, " ", m.renderScrollbar())
-					}
-					rendered = s.Render(vpView)
+					content = m.messageViewContent()
 				} else {
-					rendered = s.Render(m.help.View())
+					content = m.help.View()
 				}
-				ox, oy, ow, oh := m.overlayBounds(lipgloss.Width(rendered), lipgloss.Height(rendered))
+				_, ox, oy, ow, oh := m.renderOverlay(content)
 				if msg.X < ox || msg.X >= ox+ow || msg.Y < oy || msg.Y >= oy+oh {
 					// Click outside: close overlay.
 					m.messageOpen = false
