@@ -39,7 +39,7 @@ const (
 	zoneSearchResults = "searchresults"
 	zoneDiffViewer    = "diffviewer"
 	zoneHelp          = "help"
-	zoneHeader = "header"
+	zoneHeader        = "header"
 
 	// Sidebar resize detection threshold in pixels.
 	sidebarGrabThreshold = 2
@@ -82,12 +82,16 @@ type mainModel struct {
 	messageOpen       bool
 	messageVp         viewport.Model
 	preamble          string
+	branch            string
 }
 
 func New(input string, cfg config.Config) mainModel {
 	m := mainModel{
 		input: input, isShowingFileTree: cfg.UI.ShowFileTree,
 		activePanel: FileTreePanel, config: cfg, iconStyle: cfg.UI.Icons, sideBySide: cfg.UI.SideBySide,
+	}
+	if out, err := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD").Output(); err == nil {
+		m.branch = strings.TrimSpace(string(out))
 	}
 	m.fileTree = filetree.New(cfg)
 	m.fileTree.SetSize(cfg.UI.FileTreeWidth, 0)
@@ -455,25 +459,40 @@ func (m mainModel) View() tea.View {
 			Render("DIFFNAV")
 
 		sep := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack).Render(" • ")
-		dim := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack)
+		// Tig gruvbox colors.
+		hashStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("132"))
+		dateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("172"))
+		authorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("109"))
+		refStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("072"))
 
 		headerParts := title
-		if info := m.commitInfo(); info != "" {
-			subject := m.commitSubject()
-			maxInfoWidth := m.width - lipgloss.Width(title) - lipgloss.Width(sep)*2 - lipgloss.Width(subject) - 2
-			if maxInfoWidth > 0 {
-				if len(info) > maxInfoWidth {
-					info = info[:maxInfoWidth-1] + "…"
-				}
-				headerParts = headerParts + sep + dim.Render(info)
+		meta := m.parseCommitMeta()
+		if meta.hash != "" {
+			// Build info segment: hash date author
+			var infoParts []string
+			infoParts = append(infoParts, hashStyle.Render(meta.hash))
+			if meta.date != "" {
+				infoParts = append(infoParts, dateStyle.Render(meta.date))
 			}
+			if meta.author != "" {
+				infoParts = append(infoParts, authorStyle.Render(meta.author))
+			}
+			headerParts = headerParts + sep + strings.Join(infoParts, " ")
+
+			// Branch ref in brackets.
+			if m.branch != "" {
+				headerParts = headerParts + sep + refStyle.Render("["+m.branch+"]")
+			}
+
+			// Commit subject.
+			subject := m.commitSubject()
 			if subject != "" {
-				maxSubjectWidth := m.width - lipgloss.Width(headerParts) - lipgloss.Width(sep) - 1
+				maxSubjectWidth := m.width - lipgloss.Width(headerParts) - 2
 				if maxSubjectWidth > 0 {
 					if len(subject) > maxSubjectWidth {
 						subject = subject[:maxSubjectWidth-1] + "…"
 					}
-					headerParts = headerParts + sep + subject
+					headerParts = headerParts + " " + subject
 				}
 			}
 		}
@@ -576,21 +595,43 @@ func relativeTime(t time.Time) string {
 	}
 }
 
-func (m mainModel) commitInfo() string {
+type commitMeta struct {
+	hash   string
+	date   string
+	author string
+	branch string
+}
+
+func (m mainModel) parseCommitMeta() commitMeta {
+	var meta commitMeta
 	if m.preamble == "" {
-		return ""
+		return meta
 	}
-	var hash, author, dateStr string
 	for _, line := range strings.Split(m.preamble, "\n") {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "commit ") && hash == "" {
-			h := strings.TrimPrefix(trimmed, "commit ")
-			if len(h) > 7 {
-				h = h[:7]
+		if strings.HasPrefix(trimmed, "commit ") && meta.hash == "" {
+			rest := strings.TrimPrefix(trimmed, "commit ")
+			// Extract refs if present: "abc123 (HEAD -> branch, origin/branch)"
+			if idx := strings.Index(rest, " ("); idx > 0 {
+				refs := rest[idx+2:]
+				rest = rest[:idx]
+				if end := strings.Index(refs, ")"); end > 0 {
+					refs = refs[:end]
+				}
+				for _, ref := range strings.Split(refs, ",") {
+					ref = strings.TrimSpace(ref)
+					// "HEAD -> branch-name"
+					if strings.HasPrefix(ref, "HEAD -> ") {
+						meta.branch = strings.TrimPrefix(ref, "HEAD -> ")
+					}
+				}
 			}
-			hash = h
+			if len(rest) > 7 {
+				rest = rest[:7]
+			}
+			meta.hash = rest
 		}
-		if strings.HasPrefix(trimmed, "Author:") && author == "" {
+		if strings.HasPrefix(trimmed, "Author:") && meta.author == "" {
 			a := strings.TrimPrefix(trimmed, "Author:")
 			a = strings.TrimSpace(a)
 			if idx := strings.Index(a, " <"); idx > 0 {
@@ -598,34 +639,24 @@ func (m mainModel) commitInfo() string {
 			}
 			parts := strings.Fields(a)
 			if len(parts) >= 2 {
-				author = string(parts[0][0]) + parts[len(parts)-1]
+				meta.author = string(parts[0][0]) + parts[len(parts)-1]
 			} else {
-				author = a
+				meta.author = a
 			}
 		}
-		if dateStr == "" {
+		if meta.date == "" {
 			for _, prefix := range []string{"AuthorDate:", "Date:"} {
 				if strings.HasPrefix(trimmed, prefix) {
 					raw := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
 					if t, err := time.Parse("Mon Jan 2 15:04:05 2006 -0700", raw); err == nil {
-						dateStr = relativeTime(t)
+						meta.date = relativeTime(t)
 					}
 					break
 				}
 			}
 		}
 	}
-	if hash == "" {
-		return ""
-	}
-	parts := []string{hash}
-	if dateStr != "" {
-		parts = append(parts, dateStr)
-	}
-	if author != "" {
-		parts = append(parts, author)
-	}
-	return strings.Join(parts, " ")
+	return meta
 }
 
 func (m mainModel) commitSubject() string {
