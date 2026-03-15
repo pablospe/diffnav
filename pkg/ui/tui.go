@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
@@ -552,11 +553,34 @@ func (m mainModel) fetchFileTree() tea.Msg {
 	return fileTreeMsg{files: files, preamble: preamble}
 }
 
+func relativeTime(t time.Time) string {
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "now"
+	case d < time.Hour:
+		m := int(d.Minutes())
+		return fmt.Sprintf("%dm", m)
+	case d < 24*time.Hour:
+		h := int(d.Hours())
+		return fmt.Sprintf("%dh", h)
+	case d < 30*24*time.Hour:
+		days := int(d.Hours() / 24)
+		return fmt.Sprintf("%dD", days)
+	case d < 365*24*time.Hour:
+		months := int(d.Hours() / 24 / 30)
+		return fmt.Sprintf("%dM", months)
+	default:
+		years := int(d.Hours() / 24 / 365)
+		return fmt.Sprintf("%dY", years)
+	}
+}
+
 func (m mainModel) commitInfo() string {
 	if m.preamble == "" {
 		return ""
 	}
-	var hash, author string
+	var hash, author, dateStr string
 	for _, line := range strings.Split(m.preamble, "\n") {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "commit ") && hash == "" {
@@ -567,13 +591,11 @@ func (m mainModel) commitInfo() string {
 			hash = h
 		}
 		if strings.HasPrefix(trimmed, "Author:") && author == "" {
-			// "Author: Name <email>" → extract just the name
 			a := strings.TrimPrefix(trimmed, "Author:")
 			a = strings.TrimSpace(a)
 			if idx := strings.Index(a, " <"); idx > 0 {
 				a = a[:idx]
 			}
-			// Abbreviate: take first initial of first name + last name
 			parts := strings.Fields(a)
 			if len(parts) >= 2 {
 				author = string(parts[0][0]) + parts[len(parts)-1]
@@ -581,14 +603,29 @@ func (m mainModel) commitInfo() string {
 				author = a
 			}
 		}
+		if dateStr == "" {
+			for _, prefix := range []string{"AuthorDate:", "Date:"} {
+				if strings.HasPrefix(trimmed, prefix) {
+					raw := strings.TrimSpace(strings.TrimPrefix(trimmed, prefix))
+					if t, err := time.Parse("Mon Jan 2 15:04:05 2006 -0700", raw); err == nil {
+						dateStr = relativeTime(t)
+					}
+					break
+				}
+			}
+		}
 	}
 	if hash == "" {
 		return ""
 	}
-	if author != "" {
-		return hash + " " + author
+	parts := []string{hash}
+	if dateStr != "" {
+		parts = append(parts, dateStr)
 	}
-	return hash
+	if author != "" {
+		parts = append(parts, author)
+	}
+	return strings.Join(parts, " ")
 }
 
 func (m mainModel) commitSubject() string {
