@@ -38,7 +38,7 @@ const (
 	zoneSearchResults = "searchresults"
 	zoneDiffViewer    = "diffviewer"
 	zoneHelp          = "help"
-	zoneFooter        = "footer"
+	zoneHeader = "header"
 
 	// Sidebar resize detection threshold in pixels.
 	sidebarGrabThreshold = 2
@@ -80,7 +80,6 @@ type mainModel struct {
 	helpOpen          bool
 	messageOpen       bool
 	messageVp         viewport.Model
-	messageFileStart  int // line index where file list begins in messageView content
 	preamble          string
 }
 
@@ -449,10 +448,38 @@ func (m mainModel) View() tea.View {
 	var sections []string
 
 	if !m.config.UI.HideHeader {
-		header := lipgloss.NewStyle().Width(m.width).
+		title := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("6")).
 			Bold(true).
 			Render("DIFFNAV")
+
+		sep := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack).Render(" • ")
+		dim := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack)
+
+		headerParts := title
+		if info := m.commitInfo(); info != "" {
+			subject := m.commitSubject()
+			maxInfoWidth := m.width - lipgloss.Width(title) - lipgloss.Width(sep)*2 - lipgloss.Width(subject) - 2
+			if maxInfoWidth > 0 {
+				if len(info) > maxInfoWidth {
+					info = info[:maxInfoWidth-1] + "…"
+				}
+				headerParts = headerParts + sep + dim.Render(info)
+			}
+			if subject != "" {
+				maxSubjectWidth := m.width - lipgloss.Width(headerParts) - lipgloss.Width(sep) - 1
+				if maxSubjectWidth > 0 {
+					if len(subject) > maxSubjectWidth {
+						subject = subject[:maxSubjectWidth-1] + "…"
+					}
+					headerParts = headerParts + sep + subject
+				}
+			}
+		}
+
+		header := lipgloss.NewStyle().Width(m.width).Render(
+			zone.Mark(zoneHeader, headerParts),
+		)
 		sections = append(sections, header)
 	}
 
@@ -525,6 +552,45 @@ func (m mainModel) fetchFileTree() tea.Msg {
 	return fileTreeMsg{files: files, preamble: preamble}
 }
 
+func (m mainModel) commitInfo() string {
+	if m.preamble == "" {
+		return ""
+	}
+	var hash, author string
+	for _, line := range strings.Split(m.preamble, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "commit ") && hash == "" {
+			h := strings.TrimPrefix(trimmed, "commit ")
+			if len(h) > 7 {
+				h = h[:7]
+			}
+			hash = h
+		}
+		if strings.HasPrefix(trimmed, "Author:") && author == "" {
+			// "Author: Name <email>" → extract just the name
+			a := strings.TrimPrefix(trimmed, "Author:")
+			a = strings.TrimSpace(a)
+			if idx := strings.Index(a, " <"); idx > 0 {
+				a = a[:idx]
+			}
+			// Abbreviate: take first initial of first name + last name
+			parts := strings.Fields(a)
+			if len(parts) >= 2 {
+				author = string(parts[0][0]) + parts[len(parts)-1]
+			} else {
+				author = a
+			}
+		}
+	}
+	if hash == "" {
+		return ""
+	}
+	if author != "" {
+		return hash + " " + author
+	}
+	return hash
+}
+
 func (m mainModel) commitSubject() string {
 	if m.preamble == "" {
 		return ""
@@ -559,37 +625,17 @@ func (m mainModel) footerView() string {
 
 	left := lipgloss.JoinHorizontal(lipgloss.Top, files, sep, stats)
 	rightWidth := lipgloss.Width(help)
-	availableWidth := m.width - lipgloss.Width(left) - rightWidth
-
-	subject := m.commitSubject()
-	if subject != "" && availableWidth > 10 {
-		// Truncate subject if needed, leaving room for sep + padding
-		maxSubjectWidth := availableWidth - lipgloss.Width(sep) - 1
-		if maxSubjectWidth > 0 {
-			if len(subject) > maxSubjectWidth {
-				subject = subject[:maxSubjectWidth-1] + "…"
-			}
-			commitMsg := base.Foreground(lipgloss.BrightBlack).Render(subject)
-			left = lipgloss.JoinHorizontal(lipgloss.Top, left, sep, commitMsg)
-		}
-	}
 
 	spacing := base.Render(strings.Repeat(" ", max(0, m.width-lipgloss.Width(left)-rightWidth)))
-	footerLeft := zone.Mark(zoneFooter, lipgloss.JoinHorizontal(lipgloss.Top, left, spacing))
 	return base.
 		Width(m.width).
 		Height(1).
-		Render(lipgloss.JoinHorizontal(lipgloss.Top, footerLeft, help))
+		Render(lipgloss.JoinHorizontal(lipgloss.Top, left, spacing, help))
 }
 
 func (m *mainModel) messageView() string {
 	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	yellow := lipgloss.NewStyle().Foreground(lipgloss.Yellow)
-	green := lipgloss.NewStyle().Foreground(lipgloss.Green)
-	red := lipgloss.NewStyle().Foreground(lipgloss.Red)
-	cyan := lipgloss.NewStyle().Foreground(lipgloss.Cyan)
-
-	maxWidth := min(m.width*3/4, 80)
 
 	var out []string
 
@@ -608,40 +654,6 @@ func (m *mainModel) messageView() string {
 		default:
 			out = append(out, line)
 		}
-	}
-
-	// File list separator.
-	sepWidth := maxWidth - 8 // account for padding/borders
-	if sepWidth < 10 {
-		sepWidth = 10
-	}
-	out = append(out, "")
-	out = append(out, dim.Render(strings.Repeat("─", sepWidth)))
-	out = append(out, "")
-
-	// Render file list.
-	m.messageFileStart = len(out)
-	for _, f := range m.files {
-		var status string
-		var name string
-		switch {
-		case f.IsNew:
-			status = green.Render("A")
-			name = f.NewName
-		case f.IsDelete:
-			status = red.Render("D")
-			name = f.OldName
-		case f.IsRename:
-			status = cyan.Render("R")
-			name = f.OldName + " → " + f.NewName
-		case f.IsCopy:
-			status = cyan.Render("C")
-			name = f.OldName + " → " + f.NewName
-		default:
-			status = yellow.Render("M")
-			name = f.NewName
-		}
-		out = append(out, " "+status+" "+name)
 	}
 
 	return strings.Join(out, "\n")
@@ -800,24 +812,6 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 					m.helpOpen = false
 					return m, nil
 				}
-				// Click inside message overlay: check if a file was clicked.
-				if m.messageOpen {
-					// Content area starts after border (1) + padding (1).
-					contentY := msg.Y - oy - 2
-					// Account for viewport scroll offset.
-					lineIndex := contentY + m.messageVp.YOffset()
-					fileIndex := lineIndex - m.messageFileStart
-					if fileIndex >= 0 && fileIndex < len(m.files) {
-						path := filenode.GetFileName(m.files[fileIndex])
-						m.fileTree.SetCursorByPath(path)
-						node := m.fileTree.GetCurrNode()
-						var cmd tea.Cmd
-						m, cmd = m.setNodeDiff(node)
-						m.diffViewer.GoToTop()
-						m.messageOpen = false
-						return m, cmd
-					}
-				}
 				return m, nil
 			}
 		default:
@@ -868,7 +862,7 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				m.messageOpen = false
 				return m, nil
 			}
-			if zone.Get(zoneFooter).InBounds(msg) && m.preamble != "" {
+			if zone.Get(zoneHeader).InBounds(msg) && m.preamble != "" {
 				m.messageOpen = !m.messageOpen
 				m.helpOpen = false
 				return m, nil
