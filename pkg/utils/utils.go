@@ -3,12 +3,13 @@ package utils
 import (
 	"strings"
 
+	"github.com/mattn/go-runewidth"
 	"github.com/muesli/reflow/truncate"
 )
 
 // TruncateString is a convenient wrapper around truncate.TruncateString.
 func TruncateString(s string, max int) string {
-	if len(s) <= max {
+	if runewidth.StringWidth(s) <= max {
 		return s
 	}
 	if max < 0 {

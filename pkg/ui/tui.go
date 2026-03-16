@@ -148,6 +148,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.helpOpen = false
 				if m.messageOpen {
 					m.updateMessageVp()
+					m.messageVp.GotoTop()
 				}
 			}
 			return m, tea.Batch(cmds...)
@@ -755,7 +756,6 @@ func (m *mainModel) updateMessageVp() {
 	m.messageVp.SetWidth(maxWidth)
 	m.messageVp.SetHeight(maxHeight)
 	m.messageVp.SetContent(content)
-	m.messageVp.GotoTop()
 }
 
 func (m mainModel) renderScrollbar() string {
@@ -885,8 +885,8 @@ func (m mainModel) renderOverlay(content string) (string, int, int, int, int) {
 	rendered := overlayStyle().Render(content)
 	w := lipgloss.Width(rendered)
 	h := lipgloss.Height(rendered)
-	row := m.height/4 - 2
-	col := m.width/2 - w/2
+	row := max(0, m.height/4-2)
+	col := max(0, m.width/2-w/2)
 	return rendered, col, row, w, h
 }
 
@@ -965,6 +965,7 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				m.helpOpen = false
 				if m.messageOpen {
 					m.updateMessageVp()
+					m.messageVp.GotoTop()
 				}
 				return m, nil
 			}
