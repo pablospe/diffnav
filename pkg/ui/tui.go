@@ -460,51 +460,7 @@ func (m mainModel) View() tea.View {
 	var sections []string
 
 	if !m.config.UI.HideHeader {
-		title := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("6")).
-			Bold(true).
-			Render("DIFFNAV")
-
-		sep := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack).Render(" • ")
-		hashStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("132"))
-		dateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("172"))
-		authorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("109"))
-		refStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("072"))
-
-		headerParts := title
-		meta := m.cachedMeta
-		if meta.hash != "" {
-			// Build info segment: hash date author
-			var infoParts []string
-			infoParts = append(infoParts, hashStyle.Render(meta.hash))
-			if meta.date != "" {
-				infoParts = append(infoParts, dateStyle.Render(meta.date))
-			}
-			if meta.author != "" {
-				infoParts = append(infoParts, authorStyle.Render(meta.author))
-			}
-			headerParts = headerParts + sep + strings.Join(infoParts, " ")
-
-			// Branch ref in brackets.
-			if m.commitBranch != "" {
-				headerParts = headerParts + sep + refStyle.Render("["+m.commitBranch+"]")
-			}
-
-			// Commit subject.
-			subject := m.commitSubject()
-			if subject != "" {
-				maxSubjectWidth := m.width - lipgloss.Width(headerParts) - 2
-				if maxSubjectWidth > 0 {
-					subject = utils.TruncateString(subject, maxSubjectWidth)
-					headerParts = headerParts + " " + subject
-				}
-			}
-		}
-
-		header := lipgloss.NewStyle().Width(m.width).Render(
-			zone.Mark(zoneHeader, headerParts),
-		)
-		sections = append(sections, header)
+		sections = append(sections, m.viewHeader())
 	}
 
 	sections = append(sections, separator)
@@ -520,13 +476,13 @@ func (m mainModel) View() tea.View {
 	}
 
 	if m.helpOpen {
-		rendered, col, row, _, _ := m.renderOverlay(m.help.View())
-		layers = append(layers, lipgloss.NewLayer(rendered).X(col).Y(row))
+		o := m.renderOverlay(m.help.View())
+		layers = append(layers, lipgloss.NewLayer(o.rendered).X(o.col).Y(o.row))
 	}
 
 	if m.messageOpen {
-		rendered, col, row, _, _ := m.renderOverlay(m.messageViewContent())
-		layers = append(layers, lipgloss.NewLayer(rendered).X(col).Y(row))
+		o := m.renderOverlay(m.messageViewContent())
+		layers = append(layers, lipgloss.NewLayer(o.rendered).X(o.col).Y(o.row))
 	}
 
 	comp := lipgloss.NewCompositor(layers...)
@@ -701,6 +657,57 @@ func (m mainModel) commitSubject() string {
 	return ""
 }
 
+func (m mainModel) viewHeader() string {
+	title := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("6")).
+		Bold(true).
+		Render("DIFFNAV")
+
+	sep := lipgloss.NewStyle().Foreground(lipgloss.BrightBlack).Render(" • ")
+	hashStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("132"))
+	dateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("172"))
+	authorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("109"))
+	refStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("072"))
+
+	headerParts := title
+	meta := m.cachedMeta
+	if meta.hash != "" {
+		// Build info segment: hash date author
+		var infoParts []string
+		infoParts = append(infoParts, hashStyle.Render(meta.hash))
+		if meta.date != "" {
+			infoParts = append(infoParts, dateStyle.Render(meta.date))
+		}
+		if meta.author != "" {
+			infoParts = append(infoParts, authorStyle.Render(meta.author))
+		}
+		headerParts = headerParts + sep + strings.Join(infoParts, " ")
+
+		// Branch ref in brackets.
+		if m.commitBranch != "" {
+			branchIcon := " "
+			if m.iconStyle != filenode.IconsASCII && m.iconStyle != filenode.IconsUnicode {
+				branchIcon = " "
+			}
+			headerParts = headerParts + sep + refStyle.Render(branchIcon+m.commitBranch)
+		}
+
+		// Commit subject.
+		subject := m.commitSubject()
+		if subject != "" {
+			maxSubjectWidth := m.width - lipgloss.Width(headerParts) - 2
+			if maxSubjectWidth > 0 {
+				subject = utils.TruncateString(subject, maxSubjectWidth)
+				headerParts = headerParts + " " + subject
+			}
+		}
+	}
+
+	return lipgloss.NewStyle().Width(m.width).Render(
+		zone.Mark(zoneHeader, headerParts),
+	)
+}
+
 func (m mainModel) footerView() string {
 	base := lipgloss.NewStyle().Background(common.Colors[common.DarkerSelected])
 	files := fmt.Sprintf(" %d files", len(m.files))
@@ -746,13 +753,13 @@ func (m *mainModel) messageView() string {
 }
 
 func (m *mainModel) updateMessageVp() {
-	content := m.messageView()
+	s := overlayStyle()
 	maxWidth := min(m.width*3/4, 80)
-	// Max height: leave room for border (2) + padding (2) + some margin
-	maxHeight := m.height/2 - 4
+	maxHeight := m.height/2 - s.GetVerticalFrameSize()
 	if maxHeight < 5 {
 		maxHeight = 5
 	}
+	content := lipgloss.NewStyle().Width(maxWidth).Render(m.messageView())
 	m.messageVp.SetWidth(maxWidth)
 	m.messageVp.SetHeight(maxHeight)
 	m.messageVp.SetContent(content)
@@ -770,6 +777,9 @@ func (m mainModel) renderScrollbar() string {
 	thumbPos := 0
 	if scrollableLines > 0 {
 		thumbPos = m.messageVp.YOffset() * (trackHeight - thumbSize) / scrollableLines
+		if m.messageVp.YOffset() > 0 && thumbPos == 0 {
+			thumbPos = 1
+		}
 	}
 
 	track := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
@@ -879,15 +889,25 @@ func overlayStyle() lipgloss.Style {
 		BorderForeground(lipgloss.Blue)
 }
 
-// renderOverlay renders content with the overlay style and returns
-// the rendered string plus its position (col, row, width, height).
-func (m mainModel) renderOverlay(content string) (string, int, int, int, int) {
+type overlayResult struct {
+	rendered     string
+	col, row     int
+	width, height int
+}
+
+// renderOverlay renders content with the overlay style and returns the
+// rendered string and its position.
+func (m mainModel) renderOverlay(content string) overlayResult {
 	rendered := overlayStyle().Render(content)
 	w := lipgloss.Width(rendered)
 	h := lipgloss.Height(rendered)
-	row := max(0, m.height/4-2)
-	col := max(0, m.width/2-w/2)
-	return rendered, col, row, w, h
+	return overlayResult{
+		rendered: rendered,
+		col:      max(0, m.width/2-w/2),
+		row:      max(0, m.height/4-2),
+		width:    w,
+		height:   h,
+	}
 }
 
 func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
@@ -902,8 +922,8 @@ func (m mainModel) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 				} else {
 					content = m.help.View()
 				}
-				_, ox, oy, ow, oh := m.renderOverlay(content)
-				if msg.X < ox || msg.X >= ox+ow || msg.Y < oy || msg.Y >= oy+oh {
+				o := m.renderOverlay(content)
+				if msg.X < o.col || msg.X >= o.col+o.width || msg.Y < o.row || msg.Y >= o.row+o.height {
 					// Click outside: close overlay.
 					m.messageOpen = false
 					m.helpOpen = false
