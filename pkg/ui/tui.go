@@ -683,13 +683,13 @@ func (m mainModel) viewHeader() string {
 		}
 		headerParts = headerParts + sep + strings.Join(infoParts, " ")
 
-		// Branch ref in brackets.
+		// Branch ref.
 		if m.commitBranch != "" {
-			branchIcon := " "
+			branchLabel := "[" + m.commitBranch + "]"
 			if m.iconStyle != filenode.IconsASCII && m.iconStyle != filenode.IconsUnicode {
-				branchIcon = " "
+				branchLabel = "\ue0a0 " + m.commitBranch
 			}
-			headerParts = headerParts + sep + refStyle.Render(branchIcon+m.commitBranch)
+			headerParts = headerParts + sep + refStyle.Render(branchLabel)
 		}
 
 		// Commit subject.
