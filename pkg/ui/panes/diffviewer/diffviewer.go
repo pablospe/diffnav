@@ -97,17 +97,28 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+const scrollbarWidth = 3 // 1 space + 1 scrollbar character + 1 padding
+
 func (m Model) View() string {
-	return lipgloss.JoinVertical(lipgloss.Left, m.headerView(), m.vp.View())
+	vpView := m.vp.View()
+	scrollbar := common.RenderScrollbar(m.vp.Height(), m.vp.TotalLineCount(), m.vp.YOffset())
+	if scrollbar != "" {
+		vpView = lipgloss.JoinHorizontal(lipgloss.Top, vpView, " ", scrollbar)
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, m.headerView(), vpView)
 }
 
 func (m *Model) SetSize(width, height int) tea.Cmd {
 	m.Width = width
 	m.Height = height
-	m.vp.SetWidth(m.Width)
+	m.vp.SetWidth(m.contentWidth())
 	m.vp.SetHeight(m.Height - dirHeaderHeight)
 	m.cache = make(nodeCache)
 	return m.diff()
+}
+
+func (m Model) contentWidth() int {
+	return m.Width - scrollbarWidth
 }
 
 func (m *Model) diff() tea.Cmd {
@@ -126,7 +137,7 @@ func (m *Model) diff() tea.Cmd {
 		}
 		m.file = node
 		m.cache[key] = node
-		return diffFile(node, m.Width, m.sideBySide)
+		return diffFile(node, m.contentWidth(), m.sideBySide)
 	} else if m.dir != nil {
 		key := cacheKey(m.dir.path, m.sideBySide)
 		if cached, ok := m.cache[key]; ok && cached.diff != "" {
@@ -146,7 +157,7 @@ func (m *Model) diff() tea.Cmd {
 		if m.dir.path == "/" {
 			preamble = m.preamble
 		}
-		return diffDir(node, m.Width, m.sideBySide, preamble)
+		return diffDir(node, m.contentWidth(), m.sideBySide, preamble)
 	}
 
 	return nil
@@ -217,7 +228,7 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 	}
 	m.cache[key] = m.file
 
-	return m, diffFile(m.file, m.Width, m.sideBySide)
+	return m, diffFile(m.file, m.contentWidth(), m.sideBySide)
 }
 
 func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cmd) {
@@ -247,7 +258,7 @@ func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cm
 	if dirPath == "/" {
 		preamble = m.preamble
 	}
-	return m, diffDir(m.dir, m.Width, m.sideBySide, preamble)
+	return m, diffDir(m.dir, m.contentWidth(), m.sideBySide, preamble)
 }
 
 func (m *Model) GoToTop() {
