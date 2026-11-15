@@ -238,6 +238,7 @@ ui:
 | <kbd>e</kbd>                | Toggle the file tree             |
 | <kbd>t</kbd>                | Search/go-to file                |
 | <kbd>y</kbd>                | Copy file path                   |
+| <kbd>Y</kbd>                | Copy path:line                   |
 | <kbd>i</kbd>                | Cycle icon style                 |
 | <kbd>o</kbd>                | Open file at line in $EDITOR     |
 | <kbd>s</kbd>                | Toggle side-by-side/unified view |
@@ -245,7 +246,7 @@ ui:
 | <kbd>T</kbd>                | Open the theme picker            |
 | <kbd>q</kbd>                | Quit                             |
 
-<kbd>o</kbd> opens the file at the line at the top of the diff, or at the selected line when selection is on. Deleted lines open at their place in the new file, hunk headers at the hunk start. In the directory view it opens the file under that line. Without a line (a file header, or delta older than 0.20) it opens the selected tree node, as before. Like git, it runs `$EDITOR` through `sh`, so it can carry arguments (`code -w`) or a quoted path. See `ui.editorLineArg` for editors that don't take `+N`.
+<kbd>o</kbd> opens the file at the line at the top of the diff, or at the selected line when selection is on. Deleted lines open at their place in the new file, hunk headers at the hunk start. In the directory view it opens the file under that line. Without a line (a file header, or delta older than 0.20) it opens the selected tree node, as before. Like git, it runs `$EDITOR` through `sh`, so it can carry arguments (`code -w`) or a quoted path. See `ui.editorLineArg` for editors that don't take `+N`. <kbd>Y</kbd> copies `path:line` for the same line, or the same path `o` would open when there is no line.
 
 ## Discord
 
