@@ -1178,13 +1178,18 @@ func (m mainModel) lineTarget() (relpath string, line int) {
 	return relpath, line
 }
 
+// writeClipboard is swapped in tests.
+var writeClipboard = clipboard.WriteAll
+
 // copyLineRef copies "path:line" for the line under the diff view, or just the path.
+// A clipboard failure is logged, not fatal.
 func (m mainModel) copyLineRef() tea.Cmd {
 	if len(m.files) == 0 {
 		return nil
 	}
-	if err := clipboard.WriteAll(lineRef(m.lineTarget())); err != nil {
-		return func() tea.Msg { return common.ErrMsg{Err: err} }
+	ref := lineRef(m.lineTarget())
+	if err := writeClipboard(ref); err != nil {
+		log.Warn("couldn't copy to clipboard", "path", ref, "err", err)
 	}
 	return nil
 }
