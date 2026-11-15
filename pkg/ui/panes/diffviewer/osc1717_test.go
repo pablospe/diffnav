@@ -264,3 +264,47 @@ func TestSwitchToUncachedNode_HasNoRecord(t *testing.T) {
 		}
 	}
 }
+
+// refresh re-sets the patch of file as a watch refresh does and returns its new render.
+func refresh(m Model, file *gitdiff.File, lines []diffLine) Model {
+	pos := m.Position()
+	m.ClearCache()
+	m, _ = m.SetDirPatch("/", []*gitdiff.File{file})
+	m, _ = m.SetFilePatch(file)
+	m.RestorePosition(pos)
+	m, _ = m.Update(
+		diffContentMsg{cacheKey: cacheKey(m.file.path, false), node: m.file, lines: lines},
+	)
+	return m
+}
+
+func TestRestorePosition_WatchRefresh(t *testing.T) {
+	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+	var before, after []diffLine
+	for n := 1; n <= 20; n++ {
+		before = append(before, row(c(n)))
+	}
+	// A new hunk above the view: line 10 moves from row 9 to row 12.
+	after = append(after, row(), row(), row())
+	after = append(after, before...)
+	file := &gitdiff.File{NewName: "a.go"}
+
+	m := newTestModel(t)
+	m.SetSize(80, 8) // 3 rows of header
+	m, _ = m.SetFilePatch(file)
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", false), node: m.file, lines: before})
+	m.ScrollDown(9)
+
+	m = refresh(m, file, after)
+	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 12 {
+		t.Fatalf("expected row 12 (line 10) at the top, got %d", got)
+	}
+
+	// Another file starts at its top.
+	pos := m.Position()
+	m, _ = m.SetFilePatch(&gitdiff.File{NewName: "b.go"})
+	m.RestorePosition(pos)
+	if m.anchor != nil {
+		t.Fatalf("expected no anchor for another file, got %+v", m.anchor)
+	}
+}
