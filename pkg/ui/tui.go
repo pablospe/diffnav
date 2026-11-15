@@ -502,6 +502,7 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.commitBranch = msg.branch
 		m.cachedMeta = m.parseCommitMeta()
 		m.diffViewer.SetPreamble(m.preamble)
+		pos := m.diffViewer.Position()
 		m.diffViewer, cmd = m.diffViewer.SetDirPatch("/", m.fileTree.GetCurrNodeDesendantDiffs())
 		cmds = append(cmds, cmd)
 		if m.pendingCursorPath != "" {
@@ -511,6 +512,8 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 			m.pendingCursorPath = ""
 		}
+		// A watch refresh of the same node keeps the diff line at the top.
+		m.diffViewer.RestorePosition(pos)
 
 	case common.ErrMsg:
 		fmt.Printf("Error: %v\n", msg.Err)
