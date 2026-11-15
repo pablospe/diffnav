@@ -354,6 +354,36 @@ func (m *Model) show(lines []diffLine) {
 	m.fvp.SetObjects(lines)
 }
 
+// Position is the scroll position of the shown node, kept across a watch refresh.
+type Position struct {
+	path   string
+	anchor *scrollAnchor
+}
+
+// Position returns the current scroll position, to restore with RestorePosition.
+func (m *Model) Position() Position {
+	m.keepPosition()
+	p := Position{anchor: m.anchor}
+	if m.file != nil {
+		p.path = m.file.path
+	} else if m.dir != nil {
+		p.path = m.dir.path
+	}
+	return p
+}
+
+// RestorePosition scrolls back to p once the shown node renders, if it is the same node.
+// The anchor is a new-file line number, so lines added or removed above it in the file
+// shift the view by as many. If the line is gone from the diff, nothing is restored.
+func (m *Model) RestorePosition(p Position) {
+	if p.anchor == nil {
+		return
+	}
+	if (m.file != nil && m.file.path == p.path) || (m.dir != nil && m.dir.path == p.path) {
+		m.anchor = p.anchor
+	}
+}
+
 // setLines shows lines and scrolls to the anchor, if any.
 func (m *Model) setLines(lines []diffLine) {
 	m.show(lines)
