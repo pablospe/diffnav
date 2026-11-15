@@ -1,6 +1,7 @@
 package filetree
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -270,5 +271,35 @@ func TestCloseDirsBelowDepthOne(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+func TestCopyCurrNodePathClipboardFailureIsNotFatal(t *testing.T) {
+	f, err := os.Open("testdata/multiple_files.diff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, _, err := gitdiff.Parse(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	orig := writeClipboard
+	t.Cleanup(func() { writeClipboard = orig })
+	var got string
+	writeClipboard = func(s string) error {
+		got = s
+		return errors.New("no clipboard")
+	}
+
+	common.RegisterSupportedTints()
+	m := Model{t: tree.New(nil, 80, 40)}
+	m.t.SetNodes(buildFullFileTree(files, config.Config{}))
+
+	if cmd := m.CopyCurrNodePath(); cmd != nil {
+		t.Fatalf("expected no cmd on clipboard failure, got %T", cmd())
+	}
+	if got != m.CurrNodePath() {
+		t.Fatalf("expected %q to be copied, got %q", m.CurrNodePath(), got)
 	}
 }
