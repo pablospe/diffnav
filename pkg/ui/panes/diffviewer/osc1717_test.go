@@ -308,3 +308,23 @@ func TestRestorePosition_WatchRefresh(t *testing.T) {
 		t.Fatalf("expected no anchor for another file, got %+v", m.anchor)
 	}
 }
+
+func TestSetDirPatch_SameDirKeepsScroll(t *testing.T) {
+	lines := make([]diffLine, 20)
+	for i := range lines {
+		lines[i] = row()
+	}
+	m := newTestModel(t)
+	m.SetSize(80, 8)
+	m, _ = m.SetDirPatch("/", nil)
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("/", false), node: m.dir, lines: lines})
+	m.ScrollDown(9)
+
+	// A watch refresh sets the root twice before its render arrives.
+	m.ClearCache()
+	m, _ = m.SetDirPatch("/", nil)
+	m, _ = m.SetDirPatch("/", nil)
+	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 9 {
+		t.Fatalf("expected row 9 to stay at the top, got %d", got)
+	}
+}
