@@ -28,6 +28,7 @@ type KeyMap struct {
 	SearchPrevMatch       key.Binding
 	Quit                  key.Binding
 	Copy                  key.Binding
+	CopyLine              key.Binding
 	SwitchPanel           key.Binding
 	OpenInEditor          key.Binding
 	ToggleDiffView        key.Binding
@@ -139,6 +140,10 @@ var keys = &KeyMap{
 		key.WithKeys("y"),
 		key.WithHelp("y", "copy file path"),
 	),
+	CopyLine: key.NewBinding(
+		key.WithKeys("Y"),
+		key.WithHelp("Y", "copy path:line"),
+	),
 	SwitchPanel: key.NewBinding(
 		key.WithKeys("tab", "shift+tab"),
 		key.WithHelp("tab", "switch panel"),
@@ -196,6 +201,7 @@ func KeyGroups() [][]key.Binding {
 		keys.SearchNextMatch,
 		keys.SearchPrevMatch,
 		keys.Copy,
+		keys.CopyLine,
 		keys.OpenInEditor,
 		keys.ToggleDiffView,
 		keys.ToggleIconStyle,
