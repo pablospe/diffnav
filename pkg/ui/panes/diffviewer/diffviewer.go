@@ -539,11 +539,16 @@ func (m Model) SetFilePatch(file *gitdiff.File) (Model, tea.Cmd) {
 }
 
 func (m Model) SetDirPatch(dirPath string, files []*gitdiff.File) (Model, tea.Cmd) {
+	key := cacheKey(dirPath, m.sideBySide)
+	cached, ok := m.cache[key]
+	// Already shown: re-showing a pending render's empty diff would scroll to the top.
+	if ok && m.file == nil && cached == m.dir {
+		return m, nil
+	}
 	m.file = nil
 	m.anchor = nil
 
-	key := cacheKey(dirPath, m.sideBySide)
-	if cached, ok := m.cache[key]; ok {
+	if ok {
 		m.dir = cached
 		m.updateHeader()
 		m.show(cached.diff)
