@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -325,5 +326,23 @@ func TestLineRef(t *testing.T) {
 	}
 	if got := lineRef("dir/a.go", 0); got != "dir/a.go" {
 		t.Errorf("without line: got %q", got)
+	}
+}
+
+func TestCopyLineRefClipboardFailureIsNotFatal(t *testing.T) {
+	m := newTestMainModel(t)
+	orig := writeClipboard
+	t.Cleanup(func() { writeClipboard = orig })
+	var got string
+	writeClipboard = func(s string) error {
+		got = s
+		return errors.New("no clipboard")
+	}
+
+	if cmd := m.copyLineRef(); cmd != nil {
+		t.Fatalf("expected no cmd on clipboard failure, got %T", cmd())
+	}
+	if want := m.fileTree.CurrNodePath(); got != want {
+		t.Fatalf("expected %q to be copied, got %q", want, got)
 	}
 }
