@@ -468,13 +468,15 @@ func (m *Model) CurrNodePath() string {
 	return fullpath
 }
 
+// writeClipboard is swapped in tests.
+var writeClipboard = clipboard.WriteAll
+
+// CopyCurrNodePath copies the selected path. A clipboard failure (e.g. over
+// SSH or with no clipboard tool installed) is logged, not fatal.
 func (m *Model) CopyCurrNodePath() tea.Cmd {
 	fullpath := m.CurrNodePath()
-	err := clipboard.WriteAll(fullpath)
-	if err != nil {
-		return func() tea.Msg {
-			return common.ErrMsg{Err: err}
-		}
+	if err := writeClipboard(fullpath); err != nil {
+		log.Warn("couldn't copy to clipboard", "path", fullpath, "err", err)
 	}
 	return nil
 }
