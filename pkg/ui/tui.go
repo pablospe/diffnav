@@ -18,6 +18,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
+	"github.com/atotto/clipboard"
 	"github.com/bluekeyes/go-gitdiff/gitdiff"
 	tint "github.com/lrstanley/bubbletint/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -405,6 +406,11 @@ func (m mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		case key.Matches(msg, keys.Copy):
 			cmd = m.fileTree.CopyCurrNodePath()
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		case key.Matches(msg, keys.CopyLine):
+			cmd = m.copyLineRef()
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
@@ -1138,10 +1144,7 @@ func (m mainModel) openInEditor() tea.Cmd {
 		return nil
 	}
 
-	relpath, line, ok := m.diffViewer.EditorTarget()
-	if !ok {
-		relpath = m.fileTree.CurrNodePath()
-	}
+	relpath, line := m.lineTarget()
 	path := relpath
 	if m.repoRoot != "" {
 		path = filepath.Join(m.repoRoot, relpath)
@@ -1155,6 +1158,35 @@ func (m mainModel) openInEditor() tea.Cmd {
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		return nil
 	})
+}
+
+// lineTarget returns the file and line under the diff view, falling back to the
+// file tree's node (line 0) when the view has no record.
+func (m mainModel) lineTarget() (relpath string, line int) {
+	relpath, line, ok := m.diffViewer.EditorTarget()
+	if !ok {
+		return m.fileTree.CurrNodePath(), 0
+	}
+	return relpath, line
+}
+
+// copyLineRef copies "path:line" for the line under the diff view, or just the path.
+func (m mainModel) copyLineRef() tea.Cmd {
+	if len(m.files) == 0 {
+		return nil
+	}
+	if err := clipboard.WriteAll(lineRef(m.lineTarget())); err != nil {
+		return func() tea.Msg { return common.ErrMsg{Err: err} }
+	}
+	return nil
+}
+
+// lineRef returns "path:line", or path when line isn't known (<= 0).
+func lineRef(path string, line int) string {
+	if line <= 0 {
+		return path
+	}
+	return path + ":" + strconv.Itoa(line)
 }
 
 // editorArgs returns the arguments for $EDITOR: path, or lineArg's words with

@@ -318,3 +318,12 @@ func TestEditorCommand(t *testing.T) {
 		t.Errorf("editor got args %q, want %q", got, want)
 	}
 }
+
+func TestLineRef(t *testing.T) {
+	if got := lineRef("dir/a.go", 12); got != "dir/a.go:12" {
+		t.Errorf("with line: got %q", got)
+	}
+	if got := lineRef("dir/a.go", 0); got != "dir/a.go" {
+		t.Errorf("without line: got %q", got)
+	}
+}
