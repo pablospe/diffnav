@@ -261,13 +261,22 @@ func refresh(m Model, file *gitdiff.File, lines []diffLine) Model {
 
 func TestRestorePosition_WatchRefresh(t *testing.T) {
 	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
-	var before, after []diffLine
+	a := func(n int) record { return record{Kind: 'a', NewLine: n, File: "a.go"} }
+	d := func(o int) record { return record{Kind: 'd', OldLine: o, File: "a.go"} }
+	var before, after, inserted []diffLine
 	for n := 1; n <= 20; n++ {
 		before = append(before, row(c(n)))
 	}
-	// A new hunk above the view: line 10 moves from row 9 to row 12.
-	after = append(after, row(), row(), row())
-	after = append(after, before...)
+	// Line 3 modified above the view: line 10 moves from row 9 to row 10.
+	after = append(after, before[:2]...)
+	after = append(after, row(d(3)), row(a(3)))
+	after = append(after, before[3:]...)
+	// Two lines inserted above line 3: the old line 10 is now line 12, at row 11.
+	inserted = append(inserted, before[:2]...)
+	inserted = append(inserted, row(a(3)), row(a(4)))
+	for n := 5; n <= 22; n++ {
+		inserted = append(inserted, row(c(n)))
+	}
 	file := &gitdiff.File{NewName: "a.go"}
 
 	m := newTestModel(t)
@@ -277,8 +286,13 @@ func TestRestorePosition_WatchRefresh(t *testing.T) {
 	m.ScrollDown(9)
 
 	m = refresh(m, file, after)
-	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 12 {
-		t.Fatalf("expected row 12 (line 10) at the top, got %d", got)
+	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 10 {
+		t.Fatalf("expected row 10 (line 10) at the top, got %d", got)
+	}
+	// The anchor is a line number: the view shifts by the two inserted lines.
+	m = refresh(m, file, inserted)
+	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 9 {
+		t.Fatalf("expected row 9 (new line 10) at the top, got %d", got)
 	}
 
 	// Another file starts at its top.
