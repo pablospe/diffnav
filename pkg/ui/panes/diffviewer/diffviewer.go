@@ -375,13 +375,15 @@ func (m *Model) Position() Position {
 // RestorePosition scrolls back to p once the shown node renders, if it is the same node.
 // The anchor is a new-file line number, so lines added or removed above it in the file
 // shift the view by as many. If the line is gone from the diff, nothing is restored.
+// Another node starts at its top, not at the row the last one was scrolled to.
 func (m *Model) RestorePosition(p Position) {
-	if p.anchor == nil {
+	if (m.file != nil && m.file.path == p.path) || (m.dir != nil && m.dir.path == p.path) {
+		if p.anchor != nil {
+			m.anchor = p.anchor
+		}
 		return
 	}
-	if (m.file != nil && m.file.path == p.path) || (m.dir != nil && m.dir.path == p.path) {
-		m.anchor = p.anchor
-	}
+	m.anchor = &scrollAnchor{edge: moveTop}
 }
 
 // setLines shows lines and scrolls to the anchor, if any.

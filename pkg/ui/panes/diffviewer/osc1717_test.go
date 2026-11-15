@@ -304,8 +304,33 @@ func TestRestorePosition_WatchRefresh(t *testing.T) {
 	pos := m.Position()
 	m, _ = m.SetFilePatch(&gitdiff.File{NewName: "b.go"})
 	m.RestorePosition(pos)
-	if m.anchor != nil {
-		t.Fatalf("expected no anchor for another file, got %+v", m.anchor)
+	if m.anchor == nil || m.anchor.edge != moveTop {
+		t.Fatalf("expected another file to start at its top, got %+v", m.anchor)
+	}
+}
+
+func TestRestorePosition_GoneFileShowsRootTop(t *testing.T) {
+	c := func(n int) record { return record{Kind: 'c', NewLine: n, File: "a.go"} }
+	var lines []diffLine
+	for n := 1; n <= 20; n++ {
+		lines = append(lines, row(c(n)))
+	}
+	file := &gitdiff.File{NewName: "a.go"}
+	m := newTestModel(t)
+	m.SetSize(80, 8)
+	m, _ = m.SetFilePatch(file)
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("a.go", false), node: m.file, lines: lines})
+	m.ScrollDown(9)
+
+	// a.go left the diff: the cursor falls back to the root, which is set twice.
+	pos := m.Position()
+	m.ClearCache()
+	m, _ = m.SetDirPatch("/", nil)
+	m, _ = m.SetDirPatch("/", nil)
+	m.RestorePosition(pos)
+	m, _ = m.Update(diffContentMsg{cacheKey: cacheKey("/", false), node: m.dir, lines: lines})
+	if got := m.fvp.GetItemMetrics().FirstVisibleItemIdx; got != 0 {
+		t.Fatalf("expected the root at its top, got row %d", got)
 	}
 }
 
